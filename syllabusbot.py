@@ -1,4 +1,11 @@
 #author niyatip
+#install before running
+# sudo pip install slackclient
+# sudo pip install apiclient
+# sudo pip install watson-developer-cloud
+# sudo pip install --upgrade google-api-python-client
+# sudo pip install configparser
+
 from __future__ import print_function
 from apiclient import discovery
 from slackclient import SlackClient
@@ -19,6 +26,7 @@ logging.basicConfig()
 
 import datetime
 from datetime import date
+import configparser
 
 try:
     import argparse
@@ -26,9 +34,12 @@ try:
 except ImportError:
     flags = None
 
+confi=configparser.ConfigParser()
+confi.read('params.ini')
+config=confi['P']
 # starterbot's ID as an environment variable
-BOT_ID = os.environ.get("BOT_ID")
-DM_CHANNEL=os.environ.get("DM_CHANNEL")
+BOT_ID = config['BOT_ID']
+DM_CHANNEL=config['DM_CHANNEL']
 # constants
 AT_BOT = "<@" + BOT_ID + ">"
 
@@ -39,15 +50,15 @@ CLIENT_SECRET_FILE = 'client_id.json'
 APPLICATION_NAME = 'Google Calendar API Python Quickstart'
 
 # instantiate Slack & Twilio clients
-slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+slack_client = SlackClient(config['SLACK_BOT_TOKEN'])
 
 #instantiate workspace and context for Conversation service
-WORKSPACE_ID = os.environ.get("WATSON_ID")
-PASSWORD= os.environ.get("WATSON_PASS")
-USERNAME = os.environ.get("WATSON_USER")
+WORKSPACE_ID = config['WATSON_ID']
+PASSWORD= config['WATSON_PASS']
+USERNAME = config['WATSON_USER']
 context = {}
 BOT_NAME="starterbot"
-
+#print('Slack bot id',BOT_ID)
 
 FLOW_MAP = {}
 
@@ -335,6 +346,7 @@ def handle_command(command, channel, user):
         If so, then acts on the commands. If not,
         returns back what it needs for clarification.
     """
+    slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
     attachments = ""
     response = "Not sure what you mean."
     if command.startswith("token"):
