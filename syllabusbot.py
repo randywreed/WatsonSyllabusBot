@@ -42,9 +42,9 @@ APPLICATION_NAME = 'Google Calendar API Python Quickstart'
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 #instantiate workspace and context for Conversation service
-WORKSPACE_ID = "d55f103e-9737-4b8f-9944-6ec9ca661b50"
-PASSWORD= "sa75bWiqH4Ws"
-USERNAME = "56b08001-e724-4086-b74c-6a90276a16f7"
+WORKSPACE_ID = os.environ.get("WATSON_ID")
+PASSWORD= os.environ.get("WATSON_PASS")
+USERNAME = os.environ.get("WATSON_USER")
 context = {}
 BOT_NAME="starterbot"
 
