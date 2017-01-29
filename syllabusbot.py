@@ -18,7 +18,7 @@ import logging
 logging.basicConfig()
 
 import datetime
-
+from datetime import date
 
 try:
     import argparse
@@ -46,6 +46,7 @@ WORKSPACE_ID = "d55f103e-9737-4b8f-9944-6ec9ca661b50"
 PASSWORD= "sa75bWiqH4Ws"
 USERNAME = "56b08001-e724-4086-b74c-6a90276a16f7"
 context = {}
+BOT_NAME="starterbot"
 
 
 FLOW_MAP = {}
@@ -126,6 +127,22 @@ def getGoogleCalendarID(calName, service):
         page_token = calendar_list.get('nextPageToken')
         if not page_token:
            break
+def fmtDatewtime(eDate):
+    return datetime.datetime.strptime(eDate['start']['dateTime'][:-6], '%Y-%m-%dT%H:%M:%S').strftime("%m-%d-%Y")
+
+def fmtDateTime(eDate):
+    return datetime.datetime.strptime(eDate['start']['date'], '%Y-%m-%d').strftime("%m-%d-%Y")
+
+def fmtGenDateTime(eDate):
+    return datetime.datetime.strptime(eDate, '%Y-%m-%d').strftime("%m-%d-%Y")
+
+
+def fmtNDDateTime(eDate):
+    return datetime.datetime.strftime(eDate, "%m-%d-%Y")
+
+
+def fmtDateOut(eDate):
+    return datetime.datetime.strptime(eDate, "%m-%d-%Y").strftime('%a, %b %d, %Y')
 
 def calendarQuery(user, intent, entities):
     """ 
@@ -133,41 +150,87 @@ def calendarQuery(user, intent, entities):
     """
 
     responseFromCalendar = ""
+    response=None
+
     credentials = get_credentials(user)
     searchStr=intent+":"
-    response=intent+" for "
+    searchStr=searchStr.lower()
+    print('Search String=',searchStr)
+    response=intent+" for REL1010: "
+    dataList = []
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
     calID=getGoogleCalendarID("REL 1010", service)
     now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
+    nownd=date.today()
+    # create the dates we are looking for, based on entities from Watson, store in entDate
+    entDate = []
+
+    for entity in entities:
+        entDate.append(fmtGenDateTime(entity['value']))
+        print("entity date=", entDate)
+
     print('Getting the different assignments/topics/readings')
     eventsResult = service.events().list(
         calendarId=calID, timeMin=now, singleEvents=True,
         orderBy='startTime').execute()
-    events = eventsResult.get('items', []) 
+    events = eventsResult.get('items', [])
+
+    if len(entities)==0: #no date included in request
+        #find the first date after now
+        for cevent in events:
+            if 'dateTime' in cevent['start']:
+                if fmtDatewtime(cevent)>=fmtNDDateTime(nownd):
+                    entDate.append(fmtDatewtime(cevent))
+                    break
+            elif 'date' in cevent['start']:
+                if fmtDateTime(cevent)>=fmtNDDateTime(nownd):
+                    entDate.append(fmtDateTime(cevent['start']['date']))
+                    break
+
     for event in events:
         if 'dateTime' in event['start']:
-            print(event['start']['dateTime'])
-            eventDate=datetime.datetime.strptime(event['start']['dateTime'],'%Y-%m-%dT%H:%M:%S').strftime("%m-%d-%Y")
+            #print(event['start']['dateTime'])
+            eventDate=fmtDatewtime(event)
         else:
-            print(event['start']['date'])
+            #print(event['start']['date'])
+            eventDate=fmtDateTime(event)
+        print('event date= ',eventDate)
         print(event['summary'])
-        entDate=[]
-        for entity in entities:
-            print(entity)
-            entDate.append(datetime.datetime.strptime(entity['value'],'%Y-%m-%d'))
-        if len(entities)>1:
-            if entDate[1]< eventDate < entDate[2]:
+        if len(entDate)>1:
+            if datetime.datetime.strptime(entDate[0], "%m-%d-%Y")< datetime.datetime.strptime(eventDate,'%m-%d-%Y') < datetime.datetime.strptime(entDate[1], "%m-%d-%Y"):
                 #eventDate is in the window.
-                if str(event['summary']).find(searchStr):
-                    reponse += event['summary']+ " due "+ eventDate.strftime('%a %m-%d-%Y')
+                if str(event['summary']).lower().find(searchStr)>=0:
+
+                    attachmentObject = {}
+                    attachmentObject['color'] = "#2952A3"
+                    attachmentObject['title'] = event['summary']
+                    attachmentObject['text'] = fmtDateOut(eventDate)
+                    dataList.append(attachmentObject)
         else: 
             if entDate[0]==eventDate:
-                if str(event['summary']).find(searchStr):
-                    response += event['summary'] + " due "+eventDate.strftime('%a %m-%d-%Y')
-    if response==None:
+                if str(event['summary']).lower().find(searchStr)>=0:
+                    attachmentObject = {}
+                    attachmentObject['color'] = "#2952A3"
+                    attachmentObject['title'] = event['summary']
+                    attachmentObject['text'] = fmtDateOut(eventDate)
+                    dataList.append(attachmentObject)
+
+    if len(dataList)==0:
         response="No " +searchStr+" found for requested date(s)"
-    return response
+
+    if len(dataList)>0:
+        return dataList
+    else:
+        attachmentObject={}
+        attachmentObject['color']="#ff0000"
+        attachmentObject['title']="Nothing scheduled"
+        schedStr="No "+ intent+ " is scheduled for "+fmtDateOut(entDate[0])
+        if len(entDate)>0:
+            schedStr=schedStr+" thru "+fmtDateOut(entDate[1])
+        attachmentObject['text'] = schedStr
+        dataList.append(attachmentObject)
+        return dataList
             
         
 
@@ -284,7 +347,8 @@ def handle_command(command, channel, user):
             response = "Authentication successful!You can now communicate with Watson."
     elif get_credentials(user) is None or command.startswith("reauth"):
         response = "Visit the following URL in the browser: " +  get_auth_url(user) \
-                   + " \n Then send watson the authorization code like @watson token abc123."
+                   + " \n Then send watson the authorization code like @" + BOT_NAME+" token abc123." \
+                   + "\n if you are direct messaging the bot, you do not need the '@'"
     else :
         #Link to Watson Conversation as Auth is completed
         # Replace with your own service credentials
@@ -309,15 +373,28 @@ def handle_command(command, channel, user):
 
         #Render response on Bot
         #Format Calendar output on the basis of intent of query
-        if intent == "schedule":
-            response = "Here are your upcoming events: "
-            attachments = calendarUsage(user, intent)
-        elif intent == "free_time":
-            response = calendarUsage(user, intent)
-        elif intent == "assignment":
-            response = calendarQuery(user, intent, entities)
+        # if intent == "schedule":
+        #     #response = "Here are your upcoming events: "
+        #     #attachments = calendarUsage(user, intent)
+        #     response=None
+        # elif intent == "free_time":
+        #     #response = calendarUsage(user, intent)
+        #
+        if intent == "assignment":
+             response="Assignments are:"
+             attachments = calendarQuery(user, intent, entities)
         elif intent=="reading":
-            response = calendarQuery(user, intent, entities)
+            response="Readings are:"
+            attachments = calendarQuery(user, intent, entities)
+        elif intent=="topic":
+            response="Topics are:"
+            attachments = calendarQuery(user, intent, entities)
+        elif intent=="event":
+            response="Events are:"
+            attachments=calendarQuery(user, intent, entities)
+        elif intent=="study_group":
+            response="Study Groups:"
+            attachments=calendarQuery(user, intent, entities)
         else:
             response = responseFromWatson['output']['text'][0]
         
