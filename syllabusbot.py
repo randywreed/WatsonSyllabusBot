@@ -57,7 +57,7 @@ WORKSPACE_ID = config['WATSON_ID']
 PASSWORD= config['WATSON_PASS']
 USERNAME = config['WATSON_USER']
 context = {}
-BOT_NAME="starterbot"
+BOT_NAME="tajane"
 #print('Slack bot id',BOT_ID)
 
 FLOW_MAP = {}
@@ -346,7 +346,6 @@ def handle_command(command, channel, user):
         If so, then acts on the commands. If not,
         returns back what it needs for clarification.
     """
-    slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
     attachments = ""
     response = "Not sure what you mean."
     if command.startswith("token"):
@@ -443,6 +442,7 @@ if __name__ == "__main__":
         while True:
             command, channel, user = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
+                #slack_client.api_call("send_typing", channel=channel, user=BOT_ID)
                 handle_command(command, channel, user)
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
