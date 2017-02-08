@@ -48,6 +48,7 @@ AT_BOT = "<@" + BOT_ID + ">"
 SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 CLIENT_SECRET_FILE = 'client_id.json'
 APPLICATION_NAME = 'Google Calendar API Python Quickstart'
+CALENDAR_NAME="REL 1010 Spr 2017"
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(config['SLACK_BOT_TOKEN'])
@@ -167,11 +168,11 @@ def calendarQuery(user, intent, entities):
     searchStr=intent+":"
     searchStr=searchStr.lower()
     print('Search String=',searchStr)
-    response=intent+" for REL1010: "
+    response=intent+" for "+ CALENDAR_NAME
     dataList = []
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
-    calID=getGoogleCalendarID("REL 1010", service)
+    calID=getGoogleCalendarID(CALENDAR_NAME, service)
     now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
     nownd=date.today()
     # create the dates we are looking for, based on entities from Watson, store in entDate
