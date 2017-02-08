@@ -58,7 +58,7 @@ WORKSPACE_ID = config['WATSON_ID']
 PASSWORD= config['WATSON_PASS']
 USERNAME = config['WATSON_USER']
 context = {}
-BOT_NAME="starterbot"
+BOT_NAME="tajane"
 #print('Slack bot id',BOT_ID)
 
 FLOW_MAP = {}
@@ -246,98 +246,98 @@ def calendarQuery(user, intent, entities):
             
         
 
-def calendarUsage(user, intent):
-    """Shows basic usage of the Google Calendar API.
-
-    Creates a Google Calendar API service object and outputs a list of the next
-    10 events on the user's calendar.
-    """
-
-    responseFromCalendar = ""
-    credentials = get_credentials(user)
-
-    http = credentials.authorize(httplib2.Http())
-    service = discovery.build('calendar', 'v3', http=http)
-
-    now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-    print('Getting the 10 upcoming events')
-    eventsResult = service.events().list(
-        calendarId='primary', timeMin=now, maxResults=10, singleEvents=True,
-        orderBy='startTime').execute()
-    events = eventsResult.get('items', [])
-    
-    if intent == "schedule":
-    
-        dataList = []    
-        if not events:
-            dataList = 'No upcoming events found.'
-        for event in events:
-            if 'dateTime' in event['start']:
-                start = datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S").strftime("%I:%M %p, %a %b %d")
-            else:
-                if 'date' in event['start']:
-                    start = datetime.datetime.strptime(event['start']['date'],"%Y-%m-%d").strftime("%a %b %d")
-                else:
-                    start="whole day"
-    
-
-            attachmentObject = {}
-            attachmentObject['color'] = "#2952A3"
-            attachmentObject['title'] = event['summary']
-            attachmentObject['text']= start
-            dataList.append(attachmentObject)
-            print(event['summary'])
-
-        return dataList
-                
-    if intent == "free_time":
-        if not events:
-            response = "You are free all day."
-        else:
-            #grab the date of the calendar request
-            date, time = events[0]['start']['dateTime'].split('T')
-    
-            #assume a starting time of 8 AM
-            checkTime = datetime.datetime.strptime(date+"T08:00:00","%Y-%m-%dT%H:%M:%S")
-            endTime = datetime.datetime.strptime(date+"T17:00:00","%Y-%m-%dT%H:%M:%S")
-            response = "You are free"
-    
-            #loop over events, if they start before 5 PM check to see if there is space between the start of the event and the end of the previous
-            for event in events:
-                print(event['start'])
-                if 'dateTime' in event['start']:
-                    start = datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")
-                    try:
-                        checkDate
-                    except NameError:
-                        checkDate=None
-                    oldDate=checkDate
-                    checkDate =datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")
-                    if start < endTime:  
-                        if start > checkTime:
-                            if oldDate!=checkDate:
-                                response +=" on "+checkDate.strftime('%m-%d-%Y') + " from " + checkTime.strftime("%I:%M %p") + " to " + start.strftime("%I:%M %p") + ","
-                            else:
-                                response +=" and from " + checkTime.strftime("%I:%M %p") + " to " + start.strftime("%I:%M %p") + ","
-                                
-                        checkTime = datetime.datetime.strptime(event['end']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")     
-    
-            #if last event ends before 5 PM, set hard limit at 5. Otherwise, change sentence formatting appropriately
-                    if checkTime < endTime:
-                        response += " and from " + checkTime.strftime("%I:%M %p") + " to 05:00 PM"
-                    else:
-                        response = response[:-1]
-                        r = response.rsplit(',',1)
-                        if len(r)>1:
-                            response = r[0] + ", and" + r[1]
-                    if response == "You are fre":
-                        response = "No free times"
-                else:
-                    if 'date' in event['start']:
-                        checkDate=datetime.datetime.strptime(event['start']['date'],"%Y-%m-%d")
-                        response +=" You may have a whole day event "+ checkDate.strftime('%m-%d-%Y')
-                       
-        return response
+# def calendarUsage(user, intent):
+#     """Shows basic usage of the Google Calendar API.
+#
+#     Creates a Google Calendar API service object and outputs a list of the next
+#     10 events on the user's calendar.
+#     """
+#
+#     responseFromCalendar = ""
+#     credentials = get_credentials(user)
+#
+#     http = credentials.authorize(httplib2.Http())
+#     service = discovery.build('calendar', 'v3', http=http)
+#
+#     now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
+#     print('Getting the 10 upcoming events')
+#     eventsResult = service.events().list(
+#         calendarId='primary', timeMin=now, maxResults=10, singleEvents=True,
+#         orderBy='startTime').execute()
+#     events = eventsResult.get('items', [])
+#
+#     if intent == "schedule":
+#
+#         dataList = []
+#         if not events:
+#             dataList = 'No upcoming events found.'
+#         for event in events:
+#             if 'dateTime' in event['start']:
+#                 start = datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S").strftime("%I:%M %p, %a %b %d")
+#             else:
+#                 if 'date' in event['start']:
+#                     start = datetime.datetime.strptime(event['start']['date'],"%Y-%m-%d").strftime("%a %b %d")
+#                 else:
+#                     start="whole day"
+#
+#
+#             attachmentObject = {}
+#             attachmentObject['color'] = "#2952A3"
+#             attachmentObject['title'] = event['summary']
+#             attachmentObject['text']= start
+#             dataList.append(attachmentObject)
+#             print(event['summary'])
+#
+#         return dataList
+#
+#     if intent == "free_time":
+#         if not events:
+#             response = "You are free all day."
+#         else:
+#             #grab the date of the calendar request
+#             date, time = events[0]['start']['dateTime'].split('T')
+#
+#             #assume a starting time of 8 AM
+#             checkTime = datetime.datetime.strptime(date+"T08:00:00","%Y-%m-%dT%H:%M:%S")
+#             endTime = datetime.datetime.strptime(date+"T17:00:00","%Y-%m-%dT%H:%M:%S")
+#             response = "You are free"
+#
+#             #loop over events, if they start before 5 PM check to see if there is space between the start of the event and the end of the previous
+#             for event in events:
+#                 print(event['start'])
+#                 if 'dateTime' in event['start']:
+#                     start = datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")
+#                     try:
+#                         checkDate
+#                     except NameError:
+#                         checkDate=None
+#                     oldDate=checkDate
+#                     checkDate =datetime.datetime.strptime(event['start']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")
+#                     if start < endTime:
+#                         if start > checkTime:
+#                             if oldDate!=checkDate:
+#                                 response +=" on "+checkDate.strftime('%m-%d-%Y') + " from " + checkTime.strftime("%I:%M %p") + " to " + start.strftime("%I:%M %p") + ","
+#                             else:
+#                                 response +=" and from " + checkTime.strftime("%I:%M %p") + " to " + start.strftime("%I:%M %p") + ","
+#
+#                         checkTime = datetime.datetime.strptime(event['end']['dateTime'][:-6],"%Y-%m-%dT%H:%M:%S")
+#
+#             #if last event ends before 5 PM, set hard limit at 5. Otherwise, change sentence formatting appropriately
+#                     if checkTime < endTime:
+#                         response += " and from " + checkTime.strftime("%I:%M %p") + " to 05:00 PM"
+#                     else:
+#                         response = response[:-1]
+#                         r = response.rsplit(',',1)
+#                         if len(r)>1:
+#                             response = r[0] + ", and" + r[1]
+#                     if response == "You are fre":
+#                         response = "No free times"
+#                 else:
+#                     if 'date' in event['start']:
+#                         checkDate=datetime.datetime.strptime(event['start']['date'],"%Y-%m-%d")
+#                         response +=" You may have a whole day event "+ checkDate.strftime('%m-%d-%Y')
+#
+#         return response
     
     
 def handle_command(command, channel, user):
@@ -347,13 +347,13 @@ def handle_command(command, channel, user):
         If so, then acts on the commands. If not,
         returns back what it needs for clarification.
     """
-    slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
+    #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
     attachments = ""
     response = "Not sure what you mean."
     if command.startswith("token"):
         store_status = set_auth_token(user, command[6:].strip())
         if store_status is None:
-            response = "You must first start the authorization process with @watson hello."
+            response = "You must first start the authorization process with @"+ BOT_NAME+" hello."
         elif store_status == -1:
             response = "The token you sent is wrong."
         elif store_status == 0:
@@ -426,14 +426,17 @@ def parse_slack_output(slack_rtm_output):
         #print(output_list['text'])
         for output in output_list:
             print(output)
-            if output and 'text' in output and AT_BOT in output['text']:
-            #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
+            try:
+                if output and 'text' in output and AT_BOT in output['text']:
+                    #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
 
-                # return text after the @ mention, whitespace removed
-                return output['text'].split(AT_BOT)[1].strip(), \
-                       output['channel'], output['user']
-            elif output and 'text' in output and output['channel']==DM_CHANNEL and output['user']!=BOT_ID:
-                return output['text'], output['channel'], output['user']
+                    # return text after the @ mention, whitespace removed
+                    return output['text'].split(AT_BOT)[1].strip(), \
+                           output['channel'], output['user']
+                elif output and 'text' in output and output['channel']==DM_CHANNEL and output['user']!=BOT_ID:
+                    return output['text'], output['channel'], output['user']
+            except KeyError:
+                pass
     return None, None, None
 
 
