@@ -409,7 +409,10 @@ def handle_command(command, channel, user):
             response="Study Groups:"
             attachments=calendarQuery(user, intent, entities)
         else:
-            response = responseFromWatson['output']['text'][0]
+            try:
+                response = responseFromWatson['output']['text'][0]
+            except:
+                response="Not sure what you mean"
         
     slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,
                       attachments=attachments)
