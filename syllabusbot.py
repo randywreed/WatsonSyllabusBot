@@ -140,7 +140,7 @@ def getGoogleCalendarID(calName, service):
         if not page_token:
            break
 def fmtDatewtime(eDate):
-    return datetime.datetime.strptime(eDate['start']['dateTime'][:-6], '%Y-%m-%dT%H:%M:%S').strftime("%m-%d-%Y")
+    return datetime.datetime.strptime(eDate['start']['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
 
 def fmtDateTime(eDate):
     return datetime.datetime.strptime(eDate['start']['date'], '%Y-%m-%d').strftime("%m-%d-%Y")
@@ -238,7 +238,7 @@ def calendarQuery(user, intent, entities):
         attachmentObject['color']="#ff0000"
         attachmentObject['title']="Nothing scheduled"
         schedStr="No "+ intent+ " is scheduled for "+fmtDateOut(entDate[0])
-        if len(entDate)>0:
+        if len(entDate)>1:
             schedStr=schedStr+" thru "+fmtDateOut(entDate[1])
         attachmentObject['text'] = schedStr
         dataList.append(attachmentObject)
