@@ -27,6 +27,8 @@ logging.basicConfig()
 import datetime
 from datetime import date
 import configparser
+import random
+
 
 try:
     import argparse
@@ -62,6 +64,7 @@ BOT_NAME="tajane"
 #print('Slack bot id',BOT_ID)
 
 FLOW_MAP = {}
+
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -163,8 +166,8 @@ def calendarQuery(user, intent, entities):
 
     responseFromCalendar = ""
     response=None
-
-    credentials = get_credentials(user)
+    fixeduser="U3RUJ95H6"
+    credentials = get_credentials(fixeduser)
     searchStr=intent+":"
     searchStr=searchStr.lower()
     print('Search String=',searchStr)
@@ -348,17 +351,22 @@ def handle_command(command, channel, user):
         returns back what it needs for clarification.
     """
     #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
+    waitresponse=["Just a sec...","Hang on...","Let me think...","Right, ok, hang on...","typing..."]
+
+    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
+
+    fixeduser="U3RUJ95H6"
     attachments = ""
     response = "Not sure what you mean."
     if command.startswith("token"):
-        store_status = set_auth_token(user, command[6:].strip())
+        store_status = set_auth_token(fixeduser, command[6:].strip())
         if store_status is None:
             response = "You must first start the authorization process with @"+ BOT_NAME+" hello."
         elif store_status == -1:
             response = "The token you sent is wrong."
         elif store_status == 0:
             response = "Authentication successful!You can now communicate with Watson."
-    elif get_credentials(user) is None or command.startswith("reauth"):
+    elif get_credentials(fixeduser) is None or command.startswith("reauth"):
         response = "Visit the following URL in the browser: " +  get_auth_url(user) \
                    + " \n Then send watson the authorization code like @" + BOT_NAME+" token abc123." \
                    + "\n if you are direct messaging the bot, you do not need the '@'"
@@ -432,11 +440,11 @@ def parse_slack_output(slack_rtm_output):
             try:
                 if output and 'text' in output and AT_BOT in output['text']:
                     #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
-
+                    print(output['text'], output['type'], output['channel'], output['user'])
                     # return text after the @ mention, whitespace removed
                     return output['text'].split(AT_BOT)[1].strip(), \
                            output['channel'], output['user']
-                elif output and 'text' in output and output['channel']==DM_CHANNEL and output['user']!=BOT_ID:
+                elif output and 'text' in output and output['user']!=BOT_ID:
                     return output['text'], output['channel'], output['user']
             except KeyError:
                 pass
