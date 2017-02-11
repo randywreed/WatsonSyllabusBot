@@ -438,13 +438,13 @@ def parse_slack_output(slack_rtm_output):
         for output in output_list:
             print(output)
             try:
-                if output and 'text' in output and AT_BOT in output['text']:
+                if output and 'text' in output and AT_BOT in output['text'] and output['channel'][0]=="C" :
                     #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
                     print(output['text'], output['type'], output['channel'], output['user'])
                     # return text after the @ mention, whitespace removed
                     return output['text'].split(AT_BOT)[1].strip(), \
                            output['channel'], output['user']
-                elif output and 'text' in output and output['user']!=BOT_ID:
+                elif output and 'text' in output and output['user']!=BOT_ID and output['channel'][0]=="D":
                     return output['text'], output['channel'], output['user']
             except KeyError:
                 pass
