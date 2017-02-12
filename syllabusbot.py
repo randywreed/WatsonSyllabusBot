@@ -159,6 +159,40 @@ def fmtNDDateTime(eDate):
 def fmtDateOut(eDate):
     return datetime.datetime.strptime(eDate, "%m-%d-%Y").strftime('%a, %b %d, %Y')
 
+def MyPresQuery(user, intent, entities):
+    responseFromCalendar = ""
+    response=None
+    fixeduser="U3RUJ95H6"
+    credentials = get_credentials(fixeduser)
+    searchStr=intent+":"
+    searchStr=searchStr.lower()
+    print('Search String=',searchStr)
+    response=intent+" for "+ CALENDAR_NAME
+    dataList = []
+    http = credentials.authorize(httplib2.Http())
+    service = discovery.build('calendar', 'v3', http=http)
+    calID=getGoogleCalendarID(CALENDAR_NAME, service)
+
+
+    responseFromCalendar = ""
+    response = None
+    fixeduser = "U3RUJ95H6"
+    credentials = get_credentials(fixeduser)
+    searchStr = intent + ":"
+    searchStr = searchStr.lower()
+    print('Search String=', searchStr)
+    response = intent + " for " + CALENDAR_NAME
+    dataList = []
+    http = credentials.authorize(httplib2.Http())
+    service = discovery.build('calendar', 'v3', http=http)
+    calID = getGoogleCalendarID(CALENDAR_NAME, service)
+
+    eventsResult = service.events().list(
+        calendarId=calID, timeMin=now, singleEvents=True,
+        orderBy='startTime').execute()
+    events = eventsResult.get('items', [])
+
+
 def calendarQuery(user, intent, entities):
     """ 
     using the date entites, query the google calendar api
@@ -344,6 +378,7 @@ def calendarQuery(user, intent, entities):
     
     
 def handle_command(command, channel, user):
+    global context
     """
         Receives commands directed at the bot and determines if they
         are valid commands.
@@ -386,7 +421,7 @@ def handle_command(command, channel, user):
             message_input={'text': command},
             context=context
         )
-
+        #print(responseFromWatson['context'])
         #Get intent of the query
         intent = responseFromWatson['intents'][0]['intent']
         #get entities from Wtson
@@ -416,6 +451,9 @@ def handle_command(command, channel, user):
         elif intent=="study_group":
             response="Study Groups:"
             attachments=calendarQuery(user, intent, entities)
+        elif intent=="individual_assignment":
+            response=="Your Presentation:"
+            attachments=MyPresQuery(user,intent,entities)
         else:
             try:
                 response = responseFromWatson['output']['text'][0]
