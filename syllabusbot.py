@@ -183,14 +183,43 @@ def MyPresQuery(user, intent, entities):
     print('Search String=', searchStr)
     response = intent + " for " + CALENDAR_NAME
     dataList = []
+    attachList=[]
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
     calID = getGoogleCalendarID(CALENDAR_NAME, service)
 
     eventsResult = service.events().list(
-        calendarId=calID, timeMin=now, singleEvents=True,
+        calendarId=calID, singleEvents=True,
         orderBy='startTime').execute()
     events = eventsResult.get('items', [])
+    # walk events and search for ['topic'] and presentation build datalist
+    # first extact topic
+    topic=entities[0]['value']
+    searchStr=topic.lower()
+    for event in events:
+        if str(event['summary']).lower().find(searchStr) >= 0 and str(event['summary']).lower().find("assignment")>=0 :
+            attachmentObject = {}
+            attachmentObject['color'] = "#2952A3"
+            attachmentObject['title'] = event['summary']
+            attachmentObject['text'] = fmtDatewtime(event)
+            dataList.append(attachmentObject)
+            dataList.append(event)
+    # create attachments
+
+    if len(dataList)>0:
+        return dataList
+    else:
+        attachmentObject={}
+        attachmentObject['color']="#ff0000"
+        attachmentObject['title']="Nothing scheduled"
+        schedStr="No "+ topic+ " is scheduled"
+        attachmentObject['text'] = schedStr
+        dataList.append(attachmentObject)
+        return dataList
+
+
+
+
 
 
 def calendarQuery(user, intent, entities):
@@ -451,9 +480,21 @@ def handle_command(command, channel, user):
         elif intent=="study_group":
             response="Study Groups:"
             attachments=calendarQuery(user, intent, entities)
-        elif intent=="individual_assignment":
-            response=="Your Presentation:"
-            attachments=MyPresQuery(user,intent,entities)
+        elif intent == "individual_assignment":
+            if len(entities) > 0:
+                try:
+                    response = responseFromWatson['output']['text'][0]
+                    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
+                except:
+                    pass
+
+                response = "Your Presentation:"
+                attachments = MyPresQuery(user, intent, entities)
+            else:
+                if len(responseFromWatson['output']['text']) > 0:
+                    response = responseFromWatson['output']['text'][0]
+                else:
+                    return
         else:
             try:
                 response = responseFromWatson['output']['text'][0]
