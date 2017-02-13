@@ -53,7 +53,8 @@ APPLICATION_NAME = 'Google Calendar API Python Quickstart'
 CALENDAR_NAME="REL 1010 Spr 2017"
 
 # instantiate Slack & Twilio clients
-slack_client = SlackClient(config['SLACK_BOT_TOKEN'])
+SLACK_TOKEN=config['SLACK_BOT_TOKEN']
+slack_client = SlackClient(SLACK_TOKEN)
 
 #instantiate workspace and context for Conversation service
 WORKSPACE_ID = config['WATSON_ID']
@@ -338,13 +339,24 @@ def calendarQuery(user, intent, entities):
         dataList.append(attachmentObject)
         return dataList
             
-def botTalk (output):
+def botTalk (output, userName, inresponse):
+     response=userName+", "+inresponse+" "
      try:
-         response = output['output']['text'][0]
+         response = response+ output['output']['text'][0]
          slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
      except:
          pass
      return
+
+
+def botTalkAttachments(output, userName, response, attachments):
+    try:
+        response = userName + ", " +response+"\n"
+        response=response+output['output']['text'][0]
+        slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,attachments=attachments)
+    except:
+        pass
+    return
 
 
 def handle_command(command, channel, user):
@@ -362,7 +374,8 @@ def handle_command(command, channel, user):
 
     fixeduser="U3RUJ95H6"
     attachments = ""
-    response = "Not sure what you mean."
+    #response = "Not sure what you mean."
+    response=""
     if command.startswith("token"):
         store_status = set_auth_token(fixeduser, command[6:].strip())
         if store_status is None:
@@ -396,7 +409,9 @@ def handle_command(command, channel, user):
         intent = responseFromWatson['intents'][0]['intent']
         #get entities from Wtson
         entities=responseFromWatson['entities']
-
+        userInfo=slack_client.api_call('users.info',user=user, token=SLACK_TOKEN)
+        userName=userInfo['user']['profile']['first_name']
+        userEmail=userInfo['user']['profile']['email']
         #Render response on Bot
         #Format Calendar output on the basis of intent of query
         # if intent == "schedule":
@@ -427,16 +442,21 @@ def handle_command(command, channel, user):
                 response = "Your Presentation:"
                 attachments = MyPresQuery(user, intent, entities)
             else:
-                botTalk(responseFromWatson)
+                botTalk(responseFromWatson, userName,"")
 
-        else:
+        if len(attachments)>0:
             try:
-                response = responseFromWatson['output']['text'][0]
+                botTalkAttachments(responseFromWatson, userName, response, attachments)
             except:
                 response="Not sure what you mean"
-        
-    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,
-                      attachments=attachments)
+                botTalk(responseFromWatson, userName, response)
+                #slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,
+                #  attachments=attachments)
+        else:
+            try:
+                botTalk(responseFromWatson,userName,response)
+            except:
+                botTalk("",userName,"Not sure what you mean, can you rephrase?")
 
 
 def parse_slack_output(slack_rtm_output):
