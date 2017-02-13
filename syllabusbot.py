@@ -145,6 +145,10 @@ def getGoogleCalendarID(calName, service):
 def fmtDatewtime(eDate):
     return datetime.datetime.strptime(eDate['start']['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
 
+def fmtLongDateTime(edate):
+    return datetime.datetime.strptime(eDate, '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
+
+
 def fmtDateTime(eDate):
     return datetime.datetime.strptime(eDate['start']['date'], '%Y-%m-%d').strftime("%m-%d-%Y")
 
@@ -220,6 +224,8 @@ def MyPresQuery(user, intent, entities):
 
 
 
+
+
 def calendarQuery(user, intent, entities):
     """ 
     using the date entites, query the google calendar api
@@ -241,10 +247,20 @@ def calendarQuery(user, intent, entities):
     nownd=date.today()
     # create the dates we are looking for, based on entities from Watson, store in entDate
     entDate = []
-
+    tallyEnt=[]
+    entText=[]
+    entDateOnlyFlag=True
     for entity in entities:
-        entDate.append(fmtGenDateTime(entity['value']))
-        print("entity date=", entDate)
+        try:
+            chekEnt=entity['value']
+            entDate.append(fmtGenDateTime(chekEnt))
+            tallyEnt.append(fmtGenDateTime(chekEnt))
+        except ValueError:
+            entText.append(entity['value'])
+            entDateOnlyFlag=False
+            pass
+
+    print("entity date=", entDate)
 
     print('Getting the different assignments/topics/readings')
     eventsResult = service.events().list(
@@ -252,7 +268,7 @@ def calendarQuery(user, intent, entities):
         orderBy='startTime').execute()
     events = eventsResult.get('items', [])
 
-    if len(entities)==0: #no date included in request
+    if len(tallyEnt)==0: #no date included in request
         #find the first date after now
         for cevent in events:
             if 'dateTime' in cevent['start']:
@@ -277,21 +293,35 @@ def calendarQuery(user, intent, entities):
             if datetime.datetime.strptime(entDate[0], "%m-%d-%Y")< datetime.datetime.strptime(eventDate,'%m-%d-%Y') < datetime.datetime.strptime(entDate[1], "%m-%d-%Y"):
                 #eventDate is in the window.
                 if str(event['summary']).lower().find(searchStr)>=0:
+                    if entDateOnlyFlag==False and str(event['summary']).lower().find(str(entText[0]).lower())>=0:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
+                    elif entDateOnlyFlag==True:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
 
-                    attachmentObject = {}
-                    attachmentObject['color'] = "#2952A3"
-                    attachmentObject['title'] = event['summary']
-                    attachmentObject['text'] = fmtDateOut(eventDate)
-                    dataList.append(attachmentObject)
+
         else: 
             if entDate[0]==eventDate:
                 if str(event['summary']).lower().find(searchStr)>=0:
-                    attachmentObject = {}
-                    attachmentObject['color'] = "#2952A3"
-                    attachmentObject['title'] = event['summary']
-                    attachmentObject['text'] = fmtDateOut(eventDate)
-                    dataList.append(attachmentObject)
-
+                    if entDateOnlyFlag == False and str(event['summary']).lower().find(str(entText[0]).lower()) >= 0:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
+                    elif entDateOnlyFlag == True:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
     if len(dataList)==0:
         response="No " +searchStr+" found for requested date(s)"
 
@@ -307,8 +337,144 @@ def calendarQuery(user, intent, entities):
         attachmentObject['text'] = schedStr
         dataList.append(attachmentObject)
         return dataList
+            
+def botTalk (output):
+     try:
+         response = output['output']['text'][0]
+         slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
+     except:
+         pass
+     return
 
 
+def handle_command(command, channel, user):
+    global context
+    """
+        Receives commands directed at the bot and determines if they
+        are valid commands.
+        If so, then acts on the commands. If not,
+        returns back what it needs for clarification.
+    """
+    #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
+    waitresponse=["typing..."]
+
+    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
+
+    fixeduser="U3RUJ95H6"
+    attachments = ""
+    response = "Not sure what you mean."
+    if command.startswith("token"):
+        store_status = set_auth_token(fixeduser, command[6:].strip())
+        if store_status is None:
+            response = "You must first start the authorization process with @"+ BOT_NAME+" hello."
+        elif store_status == -1:
+            response = "The token you sent is wrong."
+        elif store_status == 0:
+            response = "Authentication successful!You can now communicate with Watson."
+    elif get_credentials(fixeduser) is None or command.startswith("reauth"):
+        response = "Visit the following URL in the browser: " +  get_auth_url(user) \
+                   + " \n Then send watson the authorization code like @" + BOT_NAME+" token abc123." \
+                   + "\n if you are direct messaging the bot, you do not need the '@'"
+    else :
+        #Link to Watson Conversation as Auth is completed
+        # Replace with your own service credentials
+        conversation = ConversationV1(
+            username= USERNAME,
+            password= PASSWORD,
+            version='2016-09-20',
+            url="https://gateway.watsonplatform.net/conversation/api"
+        )
+
+        #Get response from Watson Conversation
+        responseFromWatson = conversation.message(
+            workspace_id=WORKSPACE_ID,
+            message_input={'text': command},
+            context=context
+        )
+        #print(responseFromWatson['context'])
+        #Get intent of the query
+        intent = responseFromWatson['intents'][0]['intent']
+        #get entities from Wtson
+        entities=responseFromWatson['entities']
+
+        #Render response on Bot
+        #Format Calendar output on the basis of intent of query
+        # if intent == "schedule":
+        #     #response = "Here are your upcoming events: "
+        #     #attachments = calendarUsage(user, intent)
+        #     response=None
+        # elif intent == "free_time":
+        #     #response = calendarUsage(user, intent)
+        #
+        if intent == "assignment":
+             response="Assignments are:"
+             attachments = calendarQuery(user, intent, entities)
+        elif intent=="reading":
+            response="Readings are:"
+            attachments = calendarQuery(user, intent, entities)
+        elif intent=="topic":
+            response="Topics are:"
+            attachments = calendarQuery(user, intent, entities)
+        elif intent=="event":
+            response="Events are:"
+            attachments=calendarQuery(user, intent, entities)
+        elif intent=="study_group":
+            response="Study Groups:"
+            attachments=calendarQuery(user, intent, entities)
+        elif intent == "individual_assignment":
+            if len(entities) > 0:
+                botTalk(responseFromWatson)
+                response = "Your Presentation:"
+                attachments = MyPresQuery(user, intent, entities)
+            else:
+                botTalk(responseFromWatson)
+
+        else:
+            try:
+                response = responseFromWatson['output']['text'][0]
+            except:
+                response="Not sure what you mean"
+        
+    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,
+                      attachments=attachments)
+
+
+def parse_slack_output(slack_rtm_output):
+    """
+        The Slack Real Time Messaging API is an events firehose.
+        This parsing function returns None unless a message is
+        directed at the Bot, based on its ID.
+    """
+    output_list = slack_rtm_output
+    if output_list and len(output_list) > 0:
+        #print(output_list['text'])
+        for output in output_list:
+            print(output)
+            try:
+                if output and 'text' in output and AT_BOT in output['text'] and output['channel'][0]=="C" :
+                    #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
+                    print(output['text'], output['type'], output['channel'], output['user'])
+                    # return text after the @ mention, whitespace removed
+                    return output['text'].split(AT_BOT)[1].strip(), \
+                           output['channel'], output['user']
+                elif output and 'text' in output and output['user']!=BOT_ID and output['channel'][0]=="D":
+                    return output['text'], output['channel'], output['user']
+            except KeyError:
+                pass
+    return None, None, None
+
+
+if __name__ == "__main__":
+    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
+    if slack_client.rtm_connect():
+        print("StarterBot connected and running!")
+        while True:
+            command, channel, user = parse_slack_output(slack_client.rtm_read())
+            if command and channel and user:
+                handle_command(command, channel, user)
+            time.sleep(READ_WEBSOCKET_DELAY)
+    else:
+        print("Connection failed. Invalid Slack token or bot ID?")
 
 # def calendarUsage(user, intent):
 #     """Shows basic usage of the Google Calendar API.
@@ -402,142 +568,4 @@ def calendarQuery(user, intent, entities):
 #                         response +=" You may have a whole day event "+ checkDate.strftime('%m-%d-%Y')
 #
 #         return response
-    
-    
-def handle_command(command, channel, user):
-    global context
-    """
-        Receives commands directed at the bot and determines if they
-        are valid commands.
-        If so, then acts on the commands. If not,
-        returns back what it needs for clarification.
-    """
-    #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
-    waitresponse=["typing..."]
 
-    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
-
-    fixeduser="U3RUJ95H6"
-    attachments = ""
-    response = "Not sure what you mean."
-    if command.startswith("token"):
-        store_status = set_auth_token(fixeduser, command[6:].strip())
-        if store_status is None:
-            response = "You must first start the authorization process with @"+ BOT_NAME+" hello."
-        elif store_status == -1:
-            response = "The token you sent is wrong."
-        elif store_status == 0:
-            response = "Authentication successful!You can now communicate with Watson."
-    elif get_credentials(fixeduser) is None or command.startswith("reauth"):
-        response = "Visit the following URL in the browser: " +  get_auth_url(user) \
-                   + " \n Then send watson the authorization code like @" + BOT_NAME+" token abc123." \
-                   + "\n if you are direct messaging the bot, you do not need the '@'"
-    else :
-        #Link to Watson Conversation as Auth is completed
-        # Replace with your own service credentials
-        conversation = ConversationV1(
-            username= USERNAME,
-            password= PASSWORD,
-            version='2016-09-20',
-            url="https://gateway.watsonplatform.net/conversation/api"
-        )
-
-        #Get response from Watson Conversation
-        responseFromWatson = conversation.message(
-            workspace_id=WORKSPACE_ID,
-            message_input={'text': command},
-            context=context
-        )
-        #print(responseFromWatson['context'])
-        #Get intent of the query
-        intent = responseFromWatson['intents'][0]['intent']
-        #get entities from Wtson
-        entities=responseFromWatson['entities']
-        print ("intent="+intent)
-        for ent in entities:
-            print("entities="+str(ent['value']))
-        #Render response on Bot
-        #Format Calendar output on the basis of intent of query
-        # if intent == "schedule":
-        #     #response = "Here are your upcoming events: "
-        #     #attachments = calendarUsage(user, intent)
-        #     response=None
-        # elif intent == "free_time":
-        #     #response = calendarUsage(user, intent)
-        #
-        if intent == "assignment":
-             response="Assignments are:"
-             attachments = calendarQuery(user, intent, entities)
-        elif intent=="reading":
-            response="Readings are:"
-            attachments = calendarQuery(user, intent, entities)
-        elif intent=="topic":
-            response="Topics are:"
-            attachments = calendarQuery(user, intent, entities)
-        elif intent=="event":
-            response="Events are:"
-            attachments=calendarQuery(user, intent, entities)
-        elif intent=="study_group":
-            response="Study Groups:"
-            attachments=calendarQuery(user, intent, entities)
-        elif intent=="individual_assignment":
-            if len(entities)>0:
-                try:
-                    response=responseFromWatson['output']['text'][0]
-                    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
-                except:
-                    pass
-
-                response="Your Presentation:"
-                attachments=MyPresQuery(user,intent,entities)
-            else:
-                if len(responseFromWatson['output']['text'])>0:
-                    response=responseFromWatson['output']['text'][0]
-                else:
-                    return
-        else:
-            try:
-                response = responseFromWatson['output']['text'][0]
-            except:
-                response="Not sure what you mean"
-        
-    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,
-                      attachments=attachments)
-
-
-def parse_slack_output(slack_rtm_output):
-    """
-        The Slack Real Time Messaging API is an events firehose.
-        This parsing function returns None unless a message is
-        directed at the Bot, based on its ID.
-    """
-    output_list = slack_rtm_output
-    if output_list and len(output_list) > 0:
-        #print(output_list['text'])
-        for output in output_list:
-            print(output)
-            try:
-                if output and 'text' in output and AT_BOT in output['text'] and output['channel'][0]=="C" :
-                    #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
-                    print(output['text'], output['type'], output['channel'], output['user'])
-                    # return text after the @ mention, whitespace removed
-                    return output['text'].split(AT_BOT)[1].strip(), \
-                           output['channel'], output['user']
-                elif output and 'text' in output and output['user']!=BOT_ID and output['channel'][0]=="D":
-                    return output['text'], output['channel'], output['user']
-            except KeyError:
-                pass
-    return None, None, None
-
-
-if __name__ == "__main__":
-    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
-    if slack_client.rtm_connect():
-        print("StarterBot connected and running!")
-        while True:
-            command, channel, user = parse_slack_output(slack_client.rtm_read())
-            if command and channel and user:
-                handle_command(command, channel, user)
-            time.sleep(READ_WEBSOCKET_DELAY)
-    else:
-        print("Connection failed. Invalid Slack token or bot ID?")
