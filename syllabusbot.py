@@ -145,6 +145,10 @@ def getGoogleCalendarID(calName, service):
 def fmtDatewtime(eDate):
     return datetime.datetime.strptime(eDate['start']['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
 
+def fmtLongDateTime(edate):
+    return datetime.datetime.strptime(eDate, '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
+
+
 def fmtDateTime(eDate):
     return datetime.datetime.strptime(eDate['start']['date'], '%Y-%m-%d').strftime("%m-%d-%Y")
 
@@ -243,10 +247,20 @@ def calendarQuery(user, intent, entities):
     nownd=date.today()
     # create the dates we are looking for, based on entities from Watson, store in entDate
     entDate = []
-
+    tallyEnt=[]
+    entText=[]
+    entDateOnlyFlag=True
     for entity in entities:
-        entDate.append(fmtGenDateTime(entity['value']))
-        print("entity date=", entDate)
+        try:
+            chekEnt=entity['value']
+            entDate.append(fmtGenDateTime(chekEnt))
+            tallyEnt.append(fmtGenDateTime(chekEnt))
+        except ValueError:
+            entText.append(entity['value'])
+            entDateOnlyFlag=False
+            pass
+
+    print("entity date=", entDate)
 
     print('Getting the different assignments/topics/readings')
     eventsResult = service.events().list(
@@ -254,7 +268,7 @@ def calendarQuery(user, intent, entities):
         orderBy='startTime').execute()
     events = eventsResult.get('items', [])
 
-    if len(entities)==0: #no date included in request
+    if len(tallyEnt)==0: #no date included in request
         #find the first date after now
         for cevent in events:
             if 'dateTime' in cevent['start']:
@@ -279,21 +293,35 @@ def calendarQuery(user, intent, entities):
             if datetime.datetime.strptime(entDate[0], "%m-%d-%Y")< datetime.datetime.strptime(eventDate,'%m-%d-%Y') < datetime.datetime.strptime(entDate[1], "%m-%d-%Y"):
                 #eventDate is in the window.
                 if str(event['summary']).lower().find(searchStr)>=0:
+                    if entDateOnlyFlag==False and str(event['summary']).lower().find(str(entText[0]).lower())>=0:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
+                    elif entDateOnlyFlag==True:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
 
-                    attachmentObject = {}
-                    attachmentObject['color'] = "#2952A3"
-                    attachmentObject['title'] = event['summary']
-                    attachmentObject['text'] = fmtDateOut(eventDate)
-                    dataList.append(attachmentObject)
+
         else: 
             if entDate[0]==eventDate:
                 if str(event['summary']).lower().find(searchStr)>=0:
-                    attachmentObject = {}
-                    attachmentObject['color'] = "#2952A3"
-                    attachmentObject['title'] = event['summary']
-                    attachmentObject['text'] = fmtDateOut(eventDate)
-                    dataList.append(attachmentObject)
-
+                    if entDateOnlyFlag == False and str(event['summary']).lower().find(str(entText[0]).lower()) >= 0:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
+                    elif entDateOnlyFlag == True:
+                        attachmentObject = {}
+                        attachmentObject['color'] = "#2952A3"
+                        attachmentObject['title'] = event['summary']
+                        attachmentObject['text'] = fmtDateOut(eventDate)
+                        dataList.append(attachmentObject)
     if len(dataList)==0:
         response="No " +searchStr+" found for requested date(s)"
 
@@ -310,7 +338,13 @@ def calendarQuery(user, intent, entities):
         dataList.append(attachmentObject)
         return dataList
             
-        
+def botTalk (output):
+     try:
+         response = output['output']['text'][0]
+         slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
+     except:
+         pass
+     return
 
 
 def handle_command(command, channel, user):
@@ -322,7 +356,7 @@ def handle_command(command, channel, user):
         returns back what it needs for clarification.
     """
     #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
-    waitresponse=["Just a sec...","Hang on...","Let me think...","Right, ok, hang on...","typing..."]
+    waitresponse=["typing..."]
 
     slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
 
@@ -389,19 +423,12 @@ def handle_command(command, channel, user):
             attachments=calendarQuery(user, intent, entities)
         elif intent == "individual_assignment":
             if len(entities) > 0:
-                try:
-                    response = responseFromWatson['output']['text'][0]
-                    slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
-                except:
-                    pass
-
+                botTalk(responseFromWatson)
                 response = "Your Presentation:"
                 attachments = MyPresQuery(user, intent, entities)
             else:
-                if len(responseFromWatson['output']['text']) > 0:
-                    response = responseFromWatson['output']['text'][0]
-                else:
-                    return
+                botTalk(responseFromWatson)
+
         else:
             try:
                 response = responseFromWatson['output']['text'][0]
