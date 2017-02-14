@@ -441,7 +441,7 @@ def handle_command(command, channel, user):
             attachments=calendarQuery(user, intent, entities)
         elif intent == "individual_assignment":
             if len(entities) > 0:
-                botTalk(responseFromWatson)
+                botTalk(responseFromWatson, userName, "")
                 response = "Your Presentation:"
                 attachments = MyPresQuery(user, intent, entities)
             else:
