@@ -28,6 +28,8 @@ import datetime
 from datetime import date
 import configparser
 import random
+import pygsheets
+
 
 
 try:
@@ -51,6 +53,8 @@ SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 CLIENT_SECRET_FILE = 'client_id.json'
 APPLICATION_NAME = 'Google Calendar API Python Quickstart'
 CALENDAR_NAME="REL 1010 Spr 2017"
+ATTENDANCE_NAME=CALENDAR_NAME+"_Attendance"
+EXTRA_CREDIT_NAME=CALENDAR_NAME+"_Extra_Credit"
 
 # instantiate Slack & Twilio clients
 SLACK_TOKEN=config['SLACK_BOT_TOKEN']
@@ -223,6 +227,10 @@ def MyPresQuery(user, intent, entities):
         dataList.append(attachmentObject)
         return dataList
 
+def AttendanceSet(user, intent, entities):
+    gc=pygsheets.authorize(outh_file='client_secret_sheets.json', outh_nonlocal=True )
+    sh=gc.open('Rel 1010 Spr 2017_Attendance')
+    wks=sh[0]
 
 
 
