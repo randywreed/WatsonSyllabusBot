@@ -11,7 +11,7 @@ from apiclient import discovery
 from slackclient import SlackClient
 from watson_developer_cloud import ConversationV1
 
-import os
+import os, sys
 import time
 
 import httplib2
@@ -77,7 +77,8 @@ def get_credentials(user):
         Credentials, the obtained credential.
     """
     home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
+    #credential_dir = os.path.join(home_dir, '.credentials')
+    credential_dir = os.path.dirname(sys.argv[0])
     if not os.path.exists(credential_dir):
         os.makedirs(credential_dir)
     credential_path = os.path.join(credential_dir,
