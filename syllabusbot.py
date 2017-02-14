@@ -352,7 +352,8 @@ def botTalk (output, userName, inresponse):
 def botTalkAttachments(output, userName, response, attachments):
     try:
         response = userName + ", " +response+"\n"
-        response=response+output['output']['text'][0]
+        if output != "":
+            response=response+output['output']['text'][0]
         slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response,attachments=attachments)
     except:
         pass
@@ -421,6 +422,7 @@ def handle_command(command, channel, user):
         # elif intent == "free_time":
         #     #response = calendarUsage(user, intent)
         #
+        botTalk(responseFromWatson,userName,"")
         if intent == "assignment":
              response="Assignments are:"
              attachments = calendarQuery(user, intent, entities)
@@ -446,7 +448,7 @@ def handle_command(command, channel, user):
 
         if len(attachments)>0:
             try:
-                botTalkAttachments(responseFromWatson, userName, response, attachments)
+                botTalkAttachments("", userName, response, attachments)
             except:
                 response="Not sure what you mean"
                 botTalk(responseFromWatson, userName, response)
@@ -454,7 +456,7 @@ def handle_command(command, channel, user):
                 #  attachments=attachments)
         else:
             try:
-                botTalk(responseFromWatson,userName,response)
+                botTalk("",userName,response)
             except:
                 botTalk("",userName,"Not sure what you mean, can you rephrase?")
 
