@@ -7,7 +7,7 @@
 # sudo pip install configparser
 
 from __future__ import print_function
-from apiclient import discovery
+from googleapiclient import discovery
 from slackclient import SlackClient
 from watson_developer_cloud import ConversationV1
 
@@ -29,6 +29,7 @@ from datetime import date
 import configparser
 import random
 import pygsheets
+import re
 
 
 
@@ -67,9 +68,12 @@ USERNAME = config['WATSON_USER']
 context = {}
 BOT_NAME="tajane"
 #print('Slack bot id',BOT_ID)
-
+FIXED_USER="U3RUJ95H6"
 FLOW_MAP = {}
-
+attendanceflag=False
+attendanceEnd=""
+holdConversationID=""
+holdIntent=""
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -186,7 +190,7 @@ def MyPresQuery(user, intent, entities):
 
     responseFromCalendar = ""
     response = None
-    fixeduser = "U3RUJ95H6"
+    fixeduser = FIXED_USER
     credentials = get_credentials(fixeduser)
     searchStr = intent + ":"
     searchStr = searchStr.lower()
@@ -243,7 +247,7 @@ def calendarQuery(user, intent, entities):
 
     responseFromCalendar = ""
     response=None
-    fixeduser="U3RUJ95H6"
+    fixeduser=FIXED_USER
     credentials = get_credentials(fixeduser)
     searchStr=intent+":"
     searchStr=searchStr.lower()
@@ -347,14 +351,79 @@ def calendarQuery(user, intent, entities):
         attachmentObject['text'] = schedStr
         dataList.append(attachmentObject)
         return dataList
-            
+
+def startAttendance(user, intent, entities):
+    # this opens attendance by setting the attendance flag to true, and setting the attendance end time
+    if user!=FIXED_USER:
+        return
+    global attendanceEnd
+    global attendanceflag
+    global holdConversationID
+    global holdIntent
+    attendanceflag=True
+    h,m,s=re.split(':',str(entities[1]['value']))
+    attendanceEnd=datetime.datetime.now()+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+    holdConversationID=""
+    holdIntent=""
+    return
+
+def getAttendance(user, intent, entities, userEmail):
+    # check if attendanceflg==true (attendance is open), check if attendance time has elapsed, if it has close attendance
+    global attendanceEnd
+    global attendanceflag
+
+    if attendanceflag==True:
+        if attendanceEnd>datetime.datetime.now():
+            # update spread sheet
+            gc = pygsheets.authorize(outh_file='client_secret_all.json', outh_nonlocal=True)
+            sh = gc.open(ATTENDANCE_NAME)
+            wks = sh[0]
+            findvar = wks.find(str(userEmail).lower())
+            if findvar==[]:
+                #add student to class
+                wks.add_rows(1)
+                newrow=wks.rows
+                c1=wks.cell('A1')
+                c1.row=newrow
+                c1.value=userEmail
+            else:
+                colrow = re.findall(r'\d+', str(findvar[0]))
+
+            #look for current date
+            curdate=datetime.datetime.now("Eastern").strftime("%m/%d/%Y")
+            datcolrow = wks.find(curdate)
+            if datcolrow=="":
+                #add date
+                wks.append_col(1)
+                newcol=wks.cols
+                d1=wks.cell('A1')
+                d1.col=newcol
+                d1.value=curdate
+            else:
+                # update the student with the seat number
+                a1=wks.cell('A1')
+                a1.col=colrow[0]
+                a1.row=colrow[1]
+                a1.value=entities['seat']['value']
+
+
+            response="Attendance has been recorded!"
+            return response
+        else:
+            attendanceflag=False
+    response="Attendance is currently closed"
+    return response
+
+
+
 def botTalk (output, userName, inresponse):
      response=userName+", "+inresponse+" "
      try:
          response = response+ output['output']['text'][0]
-         slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
      except:
          pass
+     if len(response)>len(userName)+1:
+        slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
      return
 
 
@@ -371,6 +440,8 @@ def botTalkAttachments(output, userName, response, attachments):
 
 def handle_command(command, channel, user):
     global context
+    global holdConversationID
+    global holdIntent
     """
         Receives commands directed at the bot and determines if they
         are valid commands.
@@ -409,16 +480,24 @@ def handle_command(command, channel, user):
         )
 
         #Get response from Watson Conversation
+        if holdConversationID!="":
+            context['conversation_id']=holdConversationID
         responseFromWatson = conversation.message(
             workspace_id=WORKSPACE_ID,
             message_input={'text': command},
             context=context
         )
-        #print(responseFromWatson['context'])
+        print(responseFromWatson['context'])
+        context=responseFromWatson['context']
         #Get intent of the query
-        intent = responseFromWatson['intents'][0]['intent']
+        if responseFromWatson['context']['conversation_id']==holdConversationID:
+            intent=holdIntent
+        else:
+            intent = responseFromWatson['intents'][0]['intent']
+        print(intent)
         #get entities from Wtson
         entities=responseFromWatson['entities']
+        print(entities)
         userInfo=slack_client.api_call('users.info',user=user, token=SLACK_TOKEN)
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
@@ -432,6 +511,7 @@ def handle_command(command, channel, user):
         #     #response = calendarUsage(user, intent)
         #
         botTalk(responseFromWatson,userName,"")
+
         if intent == "assignment":
              response="Assignments are:"
              attachments = calendarQuery(user, intent, entities)
@@ -454,6 +534,19 @@ def handle_command(command, channel, user):
                 attachments = MyPresQuery(user, intent, entities)
             else:
                 botTalk(responseFromWatson, userName,"")
+        elif intent=="start_attendance":
+            if len(entities)==0:
+                holdConversationID=responseFromWatson['context']['conversation_id']
+                holdIntent=intent
+            else:
+                startAttendance(user, intent, entities)
+        elif intent=="attendance":
+            if 'terminus' in responseFromWatson['context']:
+                if responseFromWatson['context']['terminus']=='True':
+                    response=getAttendance(user, intent, entities, userEmail)
+                    context['terminus']="False"
+
+
 
         if len(attachments)>0:
             try:
