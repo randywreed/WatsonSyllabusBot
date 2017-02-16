@@ -30,6 +30,9 @@ import configparser
 import random
 import pygsheets
 import re
+from pytz import timezone
+
+
 
 
 
@@ -379,6 +382,7 @@ def getAttendance(user, intent, entities, userEmail):
             sh = gc.open(ATTENDANCE_NAME)
             wks = sh[0]
             findvar = wks.find(str(userEmail).lower())
+            import pdb
             if findvar==[]:
                 #add student to class
                 wks.add_rows(1)
@@ -390,21 +394,32 @@ def getAttendance(user, intent, entities, userEmail):
                 colrow = re.findall(r'\d+', str(findvar[0]))
 
             #look for current date
-            curdate=datetime.datetime.now("Eastern").strftime("%m/%d/%Y")
+            #datetime_obj_pacific = timezone('Asia/Kolkata').localize(now)
+            now=datetime.datetime.now()
+            curdate=timezone('America/New_York').localize(now)
+            curdate=curdate.strftime("%m/%d/%Y")
             datcolrow = wks.find(curdate)
-            if datcolrow=="":
-                #add date
-                wks.append_col(1)
-                newcol=wks.cols
+            pdb.set_trace()
+            if datcolrow==[]:
+                #add date, first take row 1
+                daterow=wks.get_row(1, include_empty=True)
+                newcol=0
+                for r in range(len(daterow)):
+                    if daterow[r]==" ":
+                        newcol=r
+                        break
+                if newcol==0:
+                    newcol=len(daterow)+1
+                    
                 d1=wks.cell('A1')
                 d1.col=newcol
                 d1.value=curdate
-            else:
-                # update the student with the seat number
-                a1=wks.cell('A1')
-                a1.col=colrow[0]
-                a1.row=colrow[1]
-                a1.value=entities['seat']['value']
+                
+            # update the student with the seat number
+            a1=wks.cell('A1')
+            a1.col=colrow[0]
+            a1.row=colrow[1]
+            a1.value=entities[0]['value']
 
 
             response="Attendance has been recorded!"
