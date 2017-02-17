@@ -383,7 +383,7 @@ def getAttendance(user, intent, entities, userEmail):
             wks = sh[0]
             findvar = wks.find(str(userEmail).lower())
             import pdb
-            if findvar==[]:
+            if len(findvar)==0:
                 #add student to class
                 wks.add_rows(1)
                 newrow=wks.rows
@@ -398,8 +398,8 @@ def getAttendance(user, intent, entities, userEmail):
             now=datetime.datetime.now()
             curdate=timezone('America/New_York').localize(now)
             curdate=curdate.strftime("%m/%d/%Y")
-            datcolrow = wks.find(curdate)
-            pdb.set_trace()
+            datcolrow = re.findall(r'\d+', str(wks.find(curdate)))
+            #pdb.set_trace()
             if datcolrow==[]:
                 #add date, first take row 1
                 daterow=wks.get_row(1, include_empty=True)
@@ -417,9 +417,13 @@ def getAttendance(user, intent, entities, userEmail):
                 
             # update the student with the seat number
             a1=wks.cell('A1')
-            a1.col=colrow[0]
-            a1.row=colrow[1]
-            a1.value=entities[0]['value']
+            a1.row=int(colrow[0])
+            a1.col=int(datcolrow[1])
+            newval=entities[0]['value']
+            try:
+                a1.value=newval
+            except TypeError:
+                pass
 
 
             response="Attendance has been recorded!"
