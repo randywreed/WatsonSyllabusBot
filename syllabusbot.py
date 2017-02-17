@@ -75,6 +75,7 @@ FIXED_USER="U3RUJ95H6"
 FLOW_MAP = {}
 attendanceflag=False
 attendanceEnd=""
+attendanceCol=0
 holdConversationID=""
 holdIntent=""
 
@@ -363,17 +364,40 @@ def startAttendance(user, intent, entities):
     global attendanceflag
     global holdConversationID
     global holdIntent
+    global attendanceCol
     attendanceflag=True
     h,m,s=re.split(':',str(entities[1]['value']))
     attendanceEnd=datetime.datetime.now()+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+    gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    sh = gc.open(ATTENDANCE_NAME)
+    wks = sh[0]
+    # look for current date
+    # datetime_obj_pacific = timezone('Asia/Kolkata').localize(now)
+    now = datetime.datetime.now()
+    curdate = timezone('America/New_York').localize(now)
+    curdate = curdate.strftime("%m/%d/%Y")
+    datcolrow = re.findall(r'\d+', str(wks.find(curdate)))
+    # pdb.set_trace()
+    if len(datcolrow) == 0:
+        # add date, first take row 1
+        daterow=wks.get_row(1)
+        newcol = len(daterow) + 1
+    else:
+        newcol=datcolrow[1]
+
+    d1 = wks.cell('A1')
+    d1.col = newcol
+    d1.value = curdate
     holdConversationID=""
     holdIntent=""
+    attendanceCol=newcol
     return
 
 def getAttendance(user, intent, entities, userEmail):
     # check if attendanceflg==true (attendance is open), check if attendance time has elapsed, if it has close attendance
     global attendanceEnd
     global attendanceflag
+    global attendanceCol
 
     if attendanceflag==True:
         if attendanceEnd>datetime.datetime.now():
@@ -393,32 +417,11 @@ def getAttendance(user, intent, entities, userEmail):
             else:
                 colrow = re.findall(r'\d+', str(findvar[0]))
 
-            #look for current date
-            #datetime_obj_pacific = timezone('Asia/Kolkata').localize(now)
-            now=datetime.datetime.now()
-            curdate=timezone('America/New_York').localize(now)
-            curdate=curdate.strftime("%m/%d/%Y")
-            datcolrow = re.findall(r'\d+', str(wks.find(curdate)))
-            #pdb.set_trace()
-            if datcolrow==[]:
-                #add date, first take row 1
-                daterow=wks.get_row(1, include_empty=True)
-                newcol=0
-                for r in range(len(daterow)):
-                    if daterow[r]==" ":
-                        newcol=r
-                        break
-                if newcol==0:
-                    newcol=len(daterow)+1
-                    
-                d1=wks.cell('A1')
-                d1.col=newcol
-                d1.value=curdate
-                
+
             # update the student with the seat number
             a1=wks.cell('A1')
             a1.row=int(colrow[0])
-            a1.col=int(datcolrow[1])
+            a1.col=int(attendanceCol)
             newval=entities[0]['value']
             a1.value=newval
             # try:
@@ -437,14 +440,15 @@ def getAttendance(user, intent, entities, userEmail):
 
 
 def botTalk (output, userName, inresponse):
-     response=userName+", "+inresponse+" "
-     try:
-         response = response+ output['output']['text'][0]
-     except:
-         pass
-     if len(response)>len(userName)+1:
-        slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
-     return
+    if len(inresponse)>0 or len(output)>0:
+         response=userName+", "+inresponse+" "
+         try:
+             response = response+ output['output']['text'][0]
+         except:
+             pass
+         if len(response)>len(userName)+1:
+             slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
+    return
 
 
 def botTalkAttachments(output, userName, response, attachments):
