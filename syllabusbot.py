@@ -420,10 +420,11 @@ def getAttendance(user, intent, entities, userEmail):
             a1.row=int(colrow[0])
             a1.col=int(datcolrow[1])
             newval=entities[0]['value']
-            try:
-                a1.value=newval
-            except TypeError:
-                pass
+            a1.value=newval
+            # try:
+            #     a1.value=newval
+            # except TypeError:
+            #     pass
 
 
             response="Attendance has been recorded!"
