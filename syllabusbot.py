@@ -78,6 +78,7 @@ attendanceEnd=""
 attendanceCol=0
 holdConversationID=""
 holdIntent=""
+eventID=""
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -453,8 +454,12 @@ def CheckAttendance(user, intent, entities, userEmail):
             absence=absence+1
         else:
             present=present+1
-    response="Days Present:"+str(present)+" Days Absent:"+str(absence)+" Precentage:"+str((present/totdays)*100)
+    response="Days Present:"+str(present)+",  Days Absent:"+str(absence)+",  Attendance Precentage:{0:.1%}".format((present/totdays))
     return response
+
+def startEventChat(user, intent, entities):
+    global eventID
+
 
 def botTalk (output, userName, inresponse):
     if len(inresponse)>0 or len(output)>0:
