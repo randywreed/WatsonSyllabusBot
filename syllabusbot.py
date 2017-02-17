@@ -437,7 +437,24 @@ def getAttendance(user, intent, entities, userEmail):
     response="Attendance is currently closed"
     return response
 
-
+def CheckAttendance(user, intent, entities, userEmail):
+    #calculate attendance, absences, present and percentage
+    gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    sh = gc.open(ATTENDANCE_NAME)
+    wks = sh[0]
+    findvar = wks.find(str(userEmail).lower())
+    colrow = re.findall(r'\d+', str(findvar[0]))
+    attend=wks.get_row(int(colrow[0]))
+    absence=0
+    present=0
+    totdays=len(attend)-5
+    for i in range (5, len(attend)):
+        if attend[i]=="":
+            absence=absence+1
+        else:
+            present=present+1
+    response="Days Present:"+str(present)+" Days Absent:"+str(absence)+" Precentage:"+str((present/totdays)*100)
+    return response
 
 def botTalk (output, userName, inresponse):
     if len(inresponse)>0 or len(output)>0:
@@ -569,7 +586,8 @@ def handle_command(command, channel, user):
                 if responseFromWatson['context']['terminus']=='True':
                     response=getAttendance(user, intent, entities, userEmail)
                     context['terminus']="False"
-
+        elif intent=="check_attendance":
+            response=CheckAttendance(user,intent, entities, userEmail)
 
 
         if len(attachments)>0:
