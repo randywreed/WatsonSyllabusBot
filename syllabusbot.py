@@ -457,8 +457,41 @@ def CheckAttendance(user, intent, entities, userEmail):
     response="Days Present:"+str(present)+",  Days Absent:"+str(absence)+",  Attendance Precentage:{0:.1%}".format((present/totdays))
     return response
 
-def startEventChat(user, intent, entities):
+def startEventChat(user, intent, entities, userName, userEmail, intext):
     global eventID
+    global context
+    if eventID="":
+        #get eventID and create entry in spreadsheet
+        now = datetime.datetime.now()
+        curdate = timezone('America/New_York').localize(now)
+        curdate = curdate.strftime("%m-%d-%Y-%H:%M")
+        eventID=user+str(curdate)
+        context['event_in_process']=True
+        context=['event_name']=False
+        response="What is the name of the event?"
+        botTalk("",userName,response)
+        return
+    else:
+        if context['event_name']=False:
+            #create event in spreadsheet
+            gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+            sh = gc.open(EXTRA_CREDIT_NAME)
+            wks = sh[0]
+            newrow=wks.add_rows(1)
+            c1=cell('A1')
+            c1.row=newrow
+            c1.value=userEmail
+            c1.col=2
+            c1.value=eventID
+            c1.col=3
+            c1.value=intext
+            context['event_name']=intext
+            response="start talking about the event. When finished send !done! in a separate message"
+            botTalk("", userName, response)
+            return
+        
+            
+        
 
 
 def botTalk (output, userName, inresponse):
