@@ -31,7 +31,7 @@ import random
 import pygsheets
 import re
 from pytz import timezone
-from collections import Counter
+from stemming.porter2 import stem
 
 
 
@@ -217,8 +217,9 @@ def MyPresQuery(user, intent, entities):
     # first extact topic
     topic=entities[0]['value']
     searchStr=topic.lower()
+    searchStr=stem(searchStr)
     for event in events:
-        if str(event['summary']).lower().find(searchStr) >= 0 and str(event['summary']).lower().find("assignment")>=0 :
+        if str(event['summary']).lower().find(searchStr) >= 0 and str(event['summary']).lower().find("assignment")>=0 and str(event['summary']).lower().find("presentation")>=0 :
             attachmentObject = {}
             attachmentObject['color'] = "#2952A3"
             attachmentObject['title'] = event['summary']
@@ -311,7 +312,7 @@ def calendarQuery(user, intent, entities):
         print('event date= ',eventDate)
         print(event['summary'])
         if len(entDate)>1:
-            if datetime.datetime.strptime(entDate[0], "%m-%d-%Y")< datetime.datetime.strptime(eventDate,'%m-%d-%Y') < datetime.datetime.strptime(entDate[1], "%m-%d-%Y"):
+            if datetime.datetime.strptime(entDate[0], "%m-%d-%Y")<= datetime.datetime.strptime(eventDate,'%m-%d-%Y') <= datetime.datetime.strptime(entDate[1], "%m-%d-%Y"):
                 #eventDate is in the window.
                 if str(event['summary']).lower().find(searchStr)>=0:
                     if entDateOnlyFlag==False and str(event['summary']).lower().find(str(entText[0]).lower())>=0:
@@ -319,12 +320,20 @@ def calendarQuery(user, intent, entities):
                         attachmentObject['color'] = "#2952A3"
                         attachmentObject['title'] = event['summary']
                         attachmentObject['text'] = fmtDateOut(eventDate)
+                        if 'description' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['description']
+                        if searchStr.lower()=='event:' and 'location' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['location']
                         dataList.append(attachmentObject)
                     elif entDateOnlyFlag==True:
                         attachmentObject = {}
                         attachmentObject['color'] = "#2952A3"
                         attachmentObject['title'] = event['summary']
                         attachmentObject['text'] = fmtDateOut(eventDate)
+                        if 'description' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['description']
+                        if searchStr.lower()=='event:' and 'location' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['location']
                         dataList.append(attachmentObject)
 
 
@@ -336,12 +345,20 @@ def calendarQuery(user, intent, entities):
                         attachmentObject['color'] = "#2952A3"
                         attachmentObject['title'] = event['summary']
                         attachmentObject['text'] = fmtDateOut(eventDate)
+                        if 'description' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['description']
+                        if searchStr.lower()=='event:' and 'location' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['location']
                         dataList.append(attachmentObject)
                     elif entDateOnlyFlag == True:
                         attachmentObject = {}
                         attachmentObject['color'] = "#2952A3"
                         attachmentObject['title'] = event['summary']
                         attachmentObject['text'] = fmtDateOut(eventDate)
+                        if 'description' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['description']
+                        if searchStr.lower()=='event:' and 'location' in event:
+                            attachmentObject['text']=attachmentObject['text']+"\n"+event['location']
                         dataList.append(attachmentObject)
     if len(dataList)==0:
         response="No " +searchStr+" found for requested date(s)"
@@ -660,12 +677,13 @@ def handle_command(command, channel, user):
             response="Study Groups:"
             attachments=calendarQuery(user, intent, entities)
         elif intent == "individual_assignment":
-            if len(entities) > 0:
-                botTalk(responseFromWatson, userName, "")
-                response = "Your Presentation:"
-                attachments = MyPresQuery(user, intent, entities)
-            else:
-                botTalk(responseFromWatson, userName,"")
+            if len(entities)>0:
+                if 'entity' in entities[0] and entities[0]['entity']=='topic':
+                    #botTalk(responseFromWatson, userName, "")
+                    response = entities[0]['value']+" Presentations:"
+                    attachments = MyPresQuery(user, intent, entities)
+            #else:
+                #botTalk(responseFromWatson, userName,"")
         elif intent=="start_attendance":
             if len(entities)==0:
                 holdConversationID=responseFromWatson['context']['conversation_id']
