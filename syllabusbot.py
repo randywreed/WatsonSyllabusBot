@@ -646,7 +646,6 @@ def handle_command(command, channel, user):
             intent=holdIntent
         else:
             intent = responseFromWatson['intents'][0]['intent']
-        print("intent="+intent)
         #get entities from Wtson
         entities=responseFromWatson['entities']
         print(entities)
@@ -663,9 +662,10 @@ def handle_command(command, channel, user):
             
         #if the entity is help_topics, reset the intent to help
         if len(entities)>0:
-            if 'entity' in entities[0] and entities[0]['entity']=='help_topics':
+            if 'help_active' in context and context['help_active']=="True":
                 intent="help"
         
+        print("intent="+intent)
 
         if intent == "assignment":
              response="Assignments are:"
