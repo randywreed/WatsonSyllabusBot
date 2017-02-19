@@ -31,7 +31,7 @@ import random
 import pygsheets
 import re
 from pytz import timezone
-
+from collections import Counter
 
 
 
@@ -79,6 +79,8 @@ attendanceCol=0
 holdConversationID=""
 holdIntent=""
 eventID=""
+eventRow=0
+totWords=0
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -460,36 +462,85 @@ def CheckAttendance(user, intent, entities, userEmail):
 def startEventChat(user, intent, entities, userName, userEmail, intext):
     global eventID
     global context
-    if eventID="":
+    global eventRow
+    global totWords
+    if eventID=="":
         #get eventID and create entry in spreadsheet
         now = datetime.datetime.now()
         curdate = timezone('America/New_York').localize(now)
         curdate = curdate.strftime("%m-%d-%Y-%H:%M")
         eventID=user+str(curdate)
         context['event_in_process']=True
-        context=['event_name']=False
+        context['event_name']=False
         response="What is the name of the event?"
         botTalk("",userName,response)
         return
     else:
-        if context['event_name']=False:
+        if context['event_name']==False:
             #create event in spreadsheet
             gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
             sh = gc.open(EXTRA_CREDIT_NAME)
             wks = sh[0]
-            newrow=wks.add_rows(1)
-            c1=cell('A1')
-            c1.row=newrow
+            i=1
+            while wks.get_row(i)!=['']:
+                i=i+1
+
+            eventRow=i
+            c1=wks.cell('A1')
+            c1.row=eventRow
             c1.value=userEmail
+            #sleep(0.05)
             c1.col=2
             c1.value=eventID
+            #sleep(0.05)
             c1.col=3
             c1.value=intext
             context['event_name']=intext
             response="start talking about the event. When finished send !done! in a separate message"
             botTalk("", userName, response)
             return
-        
+        else:
+            # Event ID and event name set.
+            # check if we have the done flage
+            if intext=="!done!":
+                context['event_in_process']=False
+                context['event_name']=False
+                eventID=""
+                #report the number of words
+                response="Event notes logged. Total words="+str(totWords)
+                botTalk("",userName, response)
+                return
+            else:
+                # log notes to extra credit spreadsheet
+                gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+                sh = gc.open(EXTRA_CREDIT_NAME)
+                wks = sh[0]
+                ## check if col 4 has data
+                c1=wks.cell('A1')
+                c1.row=eventRow
+                c1.col=4
+                if c1.value!="":
+                    ## add row
+                    c1.col=1
+                    eventRow=eventRow+1
+                    c1.row=eventRow
+                    #sleep(0.05)
+                    c1.value = userEmail
+                    c1.col = 2
+                    #sleep(0.05)
+                    c1.value = eventID
+                    c1.col=3
+                    #sleep(0.05)
+                    c1.value=context['event_name']
+                    c1.col=4
+                c1.value=intext
+                totWords=totWords+len(intext.split())
+                randomResponse=['Interesting! tell me more! \n(Type !done! to end)','Is there more? \n(Type !done! to end)','I like that, what else? \n(Type !done! to end)','Hmm. I\'ll have to think about that. Keep going. \n(Type !done! to end)']
+                response=random.choice(randomResponse)+"\n Total words: "+str(totWords)
+                botTalk("",userName,response)
+                return
+
+
             
         
 
@@ -501,7 +552,7 @@ def botTalk (output, userName, inresponse):
              response = response+ output['output']['text'][0]
          except:
              pass
-         if len(response)>len(userName)+1:
+         if len(response)>len(userName)+3:
              slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=response)
     return
 
@@ -559,6 +610,11 @@ def handle_command(command, channel, user):
         )
 
         #Get response from Watson Conversation
+        # if the response is longer than 1024, truncate and hold the whole text in a holding variable
+        holdCommand=""
+        if len(command)>250:
+            holdCommand=command
+            command=command[:250]
         if holdConversationID!="":
             context['conversation_id']=holdConversationID
         responseFromWatson = conversation.message(
@@ -580,16 +636,13 @@ def handle_command(command, channel, user):
         userInfo=slack_client.api_call('users.info',user=user, token=SLACK_TOKEN)
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
-        #Render response on Bot
-        #Format Calendar output on the basis of intent of query
-        # if intent == "schedule":
-        #     #response = "Here are your upcoming events: "
-        #     #attachments = calendarUsage(user, intent)
-        #     response=None
-        # elif intent == "free_time":
-        #     #response = calendarUsage(user, intent)
-        #
-        botTalk(responseFromWatson,userName,"")
+        try:
+            if responseFromWatson['context']['event_in_process']==True:
+                intent="event_start"
+            else:
+                botTalk(responseFromWatson,userName,"")
+        except KeyError:
+            botTalk(responseFromWatson,userName,"")
 
         if intent == "assignment":
              response="Assignments are:"
@@ -626,6 +679,11 @@ def handle_command(command, channel, user):
                     context['terminus']="False"
         elif intent=="check_attendance":
             response=CheckAttendance(user,intent, entities, userEmail)
+        elif intent=="event_start":
+            if holdCommand=="":
+                startEventChat(user,intent,entities,userName,userEmail,responseFromWatson['input']['text'])
+            else:
+                startEventChat(user, intent, entities, userName, userEmail, holdCommand)
 
 
         if len(attachments)>0:
