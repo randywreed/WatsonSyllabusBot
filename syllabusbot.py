@@ -489,13 +489,13 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
         curdate = timezone('America/New_York').localize(now)
         curdate = curdate.strftime("%m-%d-%Y-%H:%M")
         eventID=user+str(curdate)
-        context['event_in_process']=True
-        context['event_name']=False
+        context[user]['event_in_process']=True
+        context[user]['event_name']=False
         response="What is the name of the event?"
         botTalk("",userName,response)
         return
     else:
-        if context['event_name']==False:
+        if context[user]['event_name']==False:
             #create event in spreadsheet
             gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
             sh = gc.open(EXTRA_CREDIT_NAME)
@@ -514,7 +514,7 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
             #sleep(0.05)
             c1.col=3
             c1.value=intext
-            context['event_name']=intext
+            context[user]['event_name']=intext
             totWords[user]=0
             response="start talking about the event. When finished send !done! in a separate message"
             botTalk("", userName, response)
@@ -523,8 +523,8 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
             # Event ID and event name set.
             # check if we have the done flage
             if intext=="!done!":
-                context['event_in_process']=False
-                context['event_name']=False
+                context[user]['event_in_process']=False
+                context[user]['event_name']=False
                 eventID=""
                 #report the number of words
                 response="Event notes logged. Total words="+str(totWords)
@@ -551,7 +551,7 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
                     c1.value = eventID
                     c1.col=3
                     #sleep(0.05)
-                    c1.value=context['event_name']
+                    c1.value=context[user]['event_name']
                     c1.col=4
                 c1.value=intext
                 totWords[user]=totWords[user]+len(intext.split())
@@ -656,7 +656,7 @@ def handle_command(command, channel, user):
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
         try:
-            if responseFromWatson['context']['event_in_process']==True:
+            if responseFromWatson['context'][user]['event_in_process']==True:
                 intent="event_start"
             else:
                 botTalk(responseFromWatson,userName,"")
