@@ -32,18 +32,20 @@ import pygsheets
 import re
 from pytz import timezone
 from stemming.porter2 import stem
+import sys
+from nested_dict import nested_dict
 
 
+# try:
+#     import argparse
+#     flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
+# except ImportError:
+#     flags = None
 
-
-try:
-    import argparse
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
-
+param=sys.argv[1]
+print(param)
 confi=configparser.ConfigParser()
-confi.read('params.ini')
+confi.read(param)
 config=confi['P']
 # starterbot's ID as an environment variable
 BOT_ID = config['BOT_ID']
@@ -56,7 +58,7 @@ AT_BOT = "<@" + BOT_ID + ">"
 SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 CLIENT_SECRET_FILE = 'client_id.json'
 APPLICATION_NAME = 'Google Calendar API Python Quickstart'
-CALENDAR_NAME="REL 1010 Spr 2017"
+CALENDAR_NAME=config['CLASS_NAME']
 ATTENDANCE_NAME=CALENDAR_NAME+"_Attendance"
 EXTRA_CREDIT_NAME=CALENDAR_NAME+"_Extra_Credit"
 
@@ -69,9 +71,9 @@ WORKSPACE_ID = config['WATSON_ID']
 PASSWORD= config['WATSON_PASS']
 USERNAME = config['WATSON_USER']
 context = {}
-BOT_NAME="tajane"
+BOT_NAME=config['BOT_NAME']
 #print('Slack bot id',BOT_ID)
-FIXED_USER="U3RUJ95H6"
+FIXED_USER=config['FIXED_USER']
 FLOW_MAP = {}
 attendanceflag=False
 attendanceEnd=""
@@ -81,6 +83,7 @@ holdIntent=""
 eventID=""
 eventRow=0
 totWords={}
+eventProcess=nested_dict()
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -160,7 +163,12 @@ def getGoogleCalendarID(calName, service):
         if not page_token:
            break
 def fmtDatewtime(eDate):
-    return datetime.datetime.strptime(eDate['start']['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
+    try:
+        return datetime.datetime.strptime(eDate['start']['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
+    except ValueError:
+        return datetime.datetime.strptime(eDate['start']['dateTime'][:-6], '%Y-%m-%dT%H:%M:%S').strftime("%m-%d-%Y")
+
+
 
 def fmtLongDateTime(edate):
     return datetime.datetime.strptime(eDate, '%Y-%m-%dT%H:%M:%SZ').strftime("%m-%d-%Y")
@@ -183,7 +191,7 @@ def fmtDateOut(eDate):
 def MyPresQuery(user, intent, entities):
     responseFromCalendar = ""
     response=None
-    fixeduser="U3RUJ95H6"
+    fixeduser=FIXED_USER
     credentials = get_credentials(fixeduser)
     searchStr=intent+":"
     searchStr=searchStr.lower()
@@ -483,19 +491,20 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
     global context
     global eventRow
     global totWords
+    global eventProcess
     if eventID=="":
         #get eventID and create entry in spreadsheet
         now = datetime.datetime.now()
         curdate = timezone('America/New_York').localize(now)
         curdate = curdate.strftime("%m-%d-%Y-%H:%M")
         eventID=user+str(curdate)
-        context[user]['event_in_process']=True
-        context[user]['event_name']=False
+        eventProcess[user]['event_in_process']=True
+        eventProcess[user]['event_name']=False
         response="What is the name of the event?"
         botTalk("",userName,response)
         return
     else:
-        if context[user]['event_name']==False:
+        if eventProcess[user]['event_name']==False:
             #create event in spreadsheet
             gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
             sh = gc.open(EXTRA_CREDIT_NAME)
@@ -514,7 +523,7 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
             #sleep(0.05)
             c1.col=3
             c1.value=intext
-            context[user]['event_name']=intext
+            eventProcess[user]['event_name']=intext
             totWords[user]=0
             response="start talking about the event. When finished send !done! in a separate message"
             botTalk("", userName, response)
@@ -523,11 +532,11 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
             # Event ID and event name set.
             # check if we have the done flage
             if intext=="!done!":
-                context[user]['event_in_process']=False
-                context[user]['event_name']=False
+                eventProcess[user]['event_in_process']=False
+                eventProcess[user]['event_name']=False
                 eventID=""
                 #report the number of words
-                response="Event notes logged. Total words="+str(totWords)
+                response="Event notes logged. Total words="+str(totWords[user])
                 botTalk("",userName, response)
                 return
             else:
@@ -551,7 +560,7 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
                     c1.value = eventID
                     c1.col=3
                     #sleep(0.05)
-                    c1.value=context[user]['event_name']
+                    c1.value=eventProcess[user]['event_name']
                     c1.col=4
                 c1.value=intext
                 totWords[user]=totWords[user]+len(intext.split())
@@ -592,6 +601,7 @@ def handle_command(command, channel, user):
     global context
     global holdConversationID
     global holdIntent
+    global eventProcess
     """
         Receives commands directed at the bot and determines if they
         are valid commands.
@@ -603,7 +613,7 @@ def handle_command(command, channel, user):
 
     slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
 
-    fixeduser="U3RUJ95H6"
+    fixeduser=FIXED_USER
     attachments = ""
     #response = "Not sure what you mean."
     response=""
@@ -656,7 +666,7 @@ def handle_command(command, channel, user):
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
         try:
-            if responseFromWatson['context'][user]['event_in_process']==True:
+            if eventProcess[user]['event_in_process']==True:
                 intent="event_start"
             else:
                 botTalk(responseFromWatson,userName,"")
@@ -736,10 +746,12 @@ def parse_slack_output(slack_rtm_output):
     """
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
-        #print(output_list['text'])
+        #print(output_list)
         for output in output_list:
             print(output)
             try:
+                if output and 'bot_id' in output:
+                    return None, None, None
                 if output and 'text' in output and AT_BOT in output['text'] and output['channel'][0]=="C" :
                     #if output and 'text' in output and (AT_BOT in output['text'] or output['channel']==DM_CHANNEL):
                     print(output['text'], output['type'], output['channel'], output['user'])
