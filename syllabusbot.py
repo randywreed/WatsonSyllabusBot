@@ -80,7 +80,7 @@ holdConversationID=""
 holdIntent=""
 eventID=""
 eventRow=0
-totWords=0
+totWords={}
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -515,6 +515,7 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
             c1.col=3
             c1.value=intext
             context['event_name']=intext
+            totWords[user]=0
             response="start talking about the event. When finished send !done! in a separate message"
             botTalk("", userName, response)
             return
@@ -553,9 +554,9 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
                     c1.value=context['event_name']
                     c1.col=4
                 c1.value=intext
-                totWords=totWords+len(intext.split())
+                totWords[user]=totWords[user]+len(intext.split())
                 randomResponse=['Interesting! tell me more! \n(Type !done! to end)','Is there more? \n(Type !done! to end)','I like that, what else? \n(Type !done! to end)','Hmm. I\'ll have to think about that. Keep going. \n(Type !done! to end)']
-                response=random.choice(randomResponse)+"\n Total words: "+str(totWords)
+                response=random.choice(randomResponse)+"\n Total words: "+str(totWords[user])
                 botTalk("",userName,response)
                 return
 
