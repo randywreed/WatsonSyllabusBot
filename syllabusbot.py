@@ -34,6 +34,10 @@ from pytz import timezone
 from stemming.porter2 import stem
 import sys
 from nested_dict import nested_dict
+import threading
+import time
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 
 # try:
@@ -84,6 +88,8 @@ eventID=""
 eventRow=0
 totWords={}
 eventProcess=nested_dict()
+attendanceDict={}
+scheduler=BackgroundScheduler
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -393,6 +399,8 @@ def startAttendance(user, intent, entities):
     global holdConversationID
     global holdIntent
     global attendanceCol
+    global attendanceDict
+    scheduler = BackgroundScheduler
     attendanceflag=True
     for entity in entities:
         if entity['entity']=="sys-time":
@@ -418,48 +426,82 @@ def startAttendance(user, intent, entities):
     d1 = wks.cell('A1')
     d1.col = newcol
     d1.value = curdate
+    attendanceMat=wks.get_col(1)
+    for attend in attendanceMat:
+        attendanceDict[attend]=""
     holdConversationID=""
     holdIntent=""
     attendanceCol=newcol
+    scheduler.add_job(func="closeAttendance", tigger="date", run_date=attendanceEnd )
+    scheduler.start()
+    scheduler.print_jobs()
+
     return
+
+def closeAttendance():
+    global attendanceflag
+    global attendanceCol
+    global attendanceDict
+    print("attendance is being closed")
+    attendanceflag=False
+    gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    sh = gc.open(ATTENDANCE_NAME)
+    wks = sh[0]
+    for attend in attendanceDict:
+        findvar=wks.find(attend)
+        colrow = re.findall(r'\d+', str(findvar[0]))
+        a1 = wks.cell('A1')
+        a1.row=int(colrow[0])
+        a1.col=int(attendanceCol)
+        newval=attendanceDict[attend]
+        a1.value=newval
+        try:
+            a1.value=newval
+        except TypeError:
+            pass
+    print("attendance written to file")
+    #write attendance to spreadsheet
 
 def getAttendance(user, intent, entities, userEmail):
     # check if attendanceflg==true (attendance is open), check if attendance time has elapsed, if it has close attendance
     global attendanceEnd
     global attendanceflag
     global attendanceCol
+    global attendanceDict
 
     if attendanceflag==True:
         if attendanceEnd>datetime.datetime.now():
             # update spread sheet
-            gc = pygsheets.authorize(outh_file='client_secret_all.json', outh_nonlocal=True)
-            sh = gc.open(ATTENDANCE_NAME)
-            wks = sh[0]
-            findvar = wks.find(str(userEmail).lower())
-            import pdb
-            if len(findvar)==0:
-                #add student to class
-                wks.add_rows(1)
-                newrow=wks.rows
-                c1=wks.cell('A1')
-                c1.row=newrow
-                c1.value=userEmail
-            else:
-                colrow = re.findall(r'\d+', str(findvar[0]))
-
-
-            # update the student with the seat number
-            a1=wks.cell('A1')
-            a1.row=int(colrow[0])
-            a1.col=int(attendanceCol)
-            newval=entities[0]['value']
-            a1.value=newval
+            # gc = pygsheets.authorize(outh_file='client_secret_all.json', outh_nonlocal=True)
+            # sh = gc.open(ATTENDANCE_NAME)
+            # wks = sh[0]
+            # findvar = wks.find(str(userEmail).lower())
+            #
+            # import pdb
+            # if len(findvar)==0:
+            #     #add student to class
+            #     wks.add_rows(1)
+            #     newrow=wks.rows
+            #     c1=wks.cell('A1')
+            #     c1.row=newrow
+            #     c1.value=userEmail
+            # else:
+            #     colrow = re.findall(r'\d+', str(findvar[0]))
+            #
+            #
+            # # update the student with the seat number
+            # a1=wks.cell('A1')
+            # a1.row=int(colrow[0])
+            # a1.col=int(attendanceCol)
+            # newval=entities[0]['value']
+            # a1.value=newval
             # try:
             #     a1.value=newval
             # except TypeError:
             #     pass
 
-
+            #update attendance dict
+            attendanceDict[userEmail.lower()]=entities[0]['value']
             response="Attendance has been recorded!"
             return response
         else:
