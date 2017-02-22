@@ -37,7 +37,8 @@ from nested_dict import nested_dict
 import threading
 import time
 import apscheduler.schedulers.background
-#from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
+import collections
 
 
 
@@ -90,7 +91,7 @@ eventID=""
 eventRow=0
 totWords={}
 eventProcess=nested_dict()
-attendanceDict={}
+attendanceDict=collections.OrderedDict()
 
 
 def get_credentials(user):
@@ -424,17 +425,20 @@ def startAttendance(user, intent, entities):
     else:
         newcol=datcolrow[1]
 
-    d1 = wks.cell('A1')
-    d1.col = newcol
-    d1.value = curdate
-    attendanceMat=wks.get_col(1)
+    # d1 = wks.cell('A1')
+    # d1.col = newcol
+    # d1.value = curdate
+    attendanceMat=wks.get_col(2)
     for attend in attendanceMat:
-        attendanceDict[attend]=""
+        if attend!="Username":
+            attendanceDict[attend]=""
+        else:
+            attendanceDict[attend]=curdate
     holdConversationID=""
     holdIntent=""
     attendanceCol=newcol
     scheduler=BackgroundScheduler()
-    scheduler.add_job(func="closeAttendance", tigger="date", run_date=attendanceEnd )
+    scheduler.add_job(func=closeAttendance, trigger='date', run_date=attendanceEnd )
     scheduler.start()
     scheduler.print_jobs()
 
@@ -449,18 +453,22 @@ def closeAttendance():
     gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
     sh = gc.open(ATTENDANCE_NAME)
     wks = sh[0]
-    for attend in attendanceDict:
-        findvar=wks.find(attend)
-        colrow = re.findall(r'\d+', str(findvar[0]))
-        a1 = wks.cell('A1')
-        a1.row=int(colrow[0])
-        a1.col=int(attendanceCol)
-        newval=attendanceDict[attend]
-        a1.value=newval
-        try:
-            a1.value=newval
-        except TypeError:
-            pass
+    #convert the values of attendanceDict to a list
+    attendList=list(attendanceDict.values())
+    # update the column
+    wks.update_col(int(attendanceCol),attendList)
+    # for attend in attendanceDict:
+    #     findvar=wks.find(attend)
+    #     colrow = re.findall(r'\d+', str(findvar[0]))
+    #     a1 = wks.cell('A1')
+    #     a1.row=int(colrow[0])
+    #     a1.col=int(attendanceCol)
+    #     newval=attendanceDict[attend]
+    #     a1.value=newval
+    #     try:
+    #         a1.value=newval
+    #     except TypeError:
+    #         pass
     print("attendance written to file")
     #write attendance to spreadsheet
 
