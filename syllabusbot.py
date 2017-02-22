@@ -407,7 +407,7 @@ def startAttendance(user, intent, entities):
     for entity in entities:
         if entity['entity']=="sys-time":
             h,m,s=re.split(':',str(entity['value']))
-    attendanceEnd=datetime.datetime.now()+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+    attendanceEnd=timezone("America/New_York").localize(datetime.datetime.now())+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
     gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
     sh = gc.open(ATTENDANCE_NAME)
     wks = sh[0]
