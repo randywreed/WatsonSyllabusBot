@@ -89,7 +89,7 @@ eventRow=0
 totWords={}
 eventProcess=nested_dict()
 attendanceDict={}
-scheduler=BackgroundScheduler
+
 
 def get_credentials(user):
     """Gets valid user credentials from storage.
@@ -400,7 +400,6 @@ def startAttendance(user, intent, entities):
     global holdIntent
     global attendanceCol
     global attendanceDict
-    scheduler = BackgroundScheduler
     attendanceflag=True
     for entity in entities:
         if entity['entity']=="sys-time":
@@ -432,6 +431,7 @@ def startAttendance(user, intent, entities):
     holdConversationID=""
     holdIntent=""
     attendanceCol=newcol
+    scheduler=BackgroundScheduler()
     scheduler.add_job(func="closeAttendance", tigger="date", run_date=attendanceEnd )
     scheduler.start()
     scheduler.print_jobs()
