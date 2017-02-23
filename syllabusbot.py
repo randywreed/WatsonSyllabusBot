@@ -305,7 +305,7 @@ def calendarQuery(user, intent, entities):
 
     print('Getting the different assignments/topics/readings')
     eventsResult = service.events().list(
-        calendarId=calID, timeMin=now, singleEvents=True,
+        calendarId=calID, singleEvents=True,
         orderBy='startTime').execute()
     events = eventsResult.get('items', [])
 
