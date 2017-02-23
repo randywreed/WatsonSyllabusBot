@@ -36,9 +36,11 @@ import sys
 from nested_dict import nested_dict
 import threading
 import time
-import apscheduler.schedulers.background
-from apscheduler.schedulers.background import BackgroundScheduler
+#import apscheduler.schedulers.background
+#from apscheduler.schedulers.background import BackgroundScheduler
 import collections
+import threading
+
 
 
 
@@ -408,7 +410,8 @@ def startAttendance(user, intent, entities):
         if entity['entity']=="sys-time":
             h,m,s=re.split(':',str(entity['value']))
     tz=timezone('America/New_York')
-    attendanceEnd=datetime.datetime.now(tz=tz)+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+    #attendanceEnd=datetime.datetime.now(tz=tz)+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+    attendanceEnd=timezone('America/New_York').localize(datetime.datetime.now()+datetime.timedelta(hours=int(h), minutes=int(m), seconds=int(s)))
     gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
     sh = gc.open(ATTENDANCE_NAME)
     wks = sh[0]
@@ -438,10 +441,13 @@ def startAttendance(user, intent, entities):
     holdConversationID=""
     holdIntent=""
     attendanceCol=newcol
-    scheduler=BackgroundScheduler()
-    scheduler.add_job(func=closeAttendance, trigger='date', run_date=attendanceEnd )
-    scheduler.start()
-    scheduler.print_jobs()
+    attendsecs=(attendanceEnd-timezone('America/New_York').localize(now)).total_seconds()
+    threadObj=threading.Timer(attendsecs, closeAttendance)
+    threadObj.start()
+    # scheduler=BackgroundScheduler()
+    # scheduler.add_job(func=closeAttendance, trigger='date', run_date=attendanceEnd )
+    # scheduler.start()
+    # scheduler.print_jobs()
 
     return
 
@@ -481,7 +487,7 @@ def getAttendance(user, intent, entities, userEmail):
     global attendanceDict
 
     if attendanceflag==True:
-        if attendanceEnd>datetime.datetime.now():
+        if attendanceEnd>timezone('America/New_York').localize(datetime.datetime.now()):
             # update spread sheet
             # gc = pygsheets.authorize(outh_file='client_secret_all.json', outh_nonlocal=True)
             # sh = gc.open(ATTENDANCE_NAME)
