@@ -58,7 +58,7 @@ confi.read(param)
 config=confi['P']
 # starterbot's ID as an environment variable
 BOT_ID = config['BOT_ID']
-DM_CHANNEL=config['DM_CHANNEL']
+#DM_CHANNEL=config['DM_CHANNEL']
 # constants
 AT_BOT = "<@" + BOT_ID + ">"
 
@@ -70,6 +70,8 @@ APPLICATION_NAME = 'Google Calendar API Python Quickstart'
 CALENDAR_NAME=config['CLASS_NAME']
 ATTENDANCE_NAME=CALENDAR_NAME+"_Attendance"
 EXTRA_CREDIT_NAME=CALENDAR_NAME+"_Extra_Credit"
+SEATING_CHART_NAME=CALENDAR_NAME+"Seating_chart"
+SEATING_CHART_ROOM_TEMPLATE="Seating Chart Room "
 
 # instantiate Slack & Twilio clients
 SLACK_TOKEN=config['SLACK_BOT_TOKEN']
@@ -628,7 +630,28 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
                 botTalk("",userName,response)
                 return
 
-
+def getSeatingChart(user, intent, entities):
+    #create a new google spreadsheet for the room add date
+    gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    now = datetime.datetime.now()
+    curdate = timezone('America/New_York').localize(now)
+    curdate = curdate.strftime("%m-%d-%Y-%H:%M")
+    nsh=gc.create(SEATING_CHART_NAME+curdate
+    
+    #open the template for the room (stored in the entity)            
+    
+    sh = gc.open(SEATING_CHART_ROOM_TEMPLATE+entities[0]['value'])
+    wks = sh[0]
+    
+    #load the google spreadsheet into a matrix
+    
+    
+    #open the copy
+    #load names and today's attendance seats into a dictionary
+    #replace seats in matrix with names
+    #rewrite the matrix to the spreadsheet
+    #send message with new spreadsheet name
+    
             
         
 
@@ -669,7 +692,7 @@ def handle_command(command, channel, user):
     """
     #slack_client.rtm_send_message(channel,'{id=1, type="typing", channel='+channel+'}')
     waitresponse=["typing..."]
-
+    print("processing intent")
     slack_client.api_call("chat.postMessage", as_user=True, channel=channel, text=random.choice(waitresponse))
 
     fixeduser=FIXED_USER
@@ -700,6 +723,7 @@ def handle_command(command, channel, user):
 
         #Get response from Watson Conversation
         # if the response is longer than 1024, truncate and hold the whole text in a holding variable
+        print("sending msg to watson")
         holdCommand=""
         if len(command)>250:
             holdCommand=command
@@ -711,7 +735,7 @@ def handle_command(command, channel, user):
             message_input={'text': command},
             context=context
         )
-        print(responseFromWatson['context'])
+        print("context from watson:"+responseFromWatson['context'])
         context=responseFromWatson['context']
         #Get intent of the query
         if responseFromWatson['context']['conversation_id']==holdConversationID:
@@ -719,8 +743,9 @@ def handle_command(command, channel, user):
         else:
             intent = responseFromWatson['intents'][0]['intent']
         #get entities from Wtson
+        print("intent="+intent)
         entities=responseFromWatson['entities']
-        print(entities)
+        print("entities:"+entities)
         userInfo=slack_client.api_call('users.info',user=user, token=SLACK_TOKEN)
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
@@ -737,7 +762,7 @@ def handle_command(command, channel, user):
             if 'help_active' in context and context['help_active']=="True":
                 intent="help"
         
-        print("intent="+intent)
+        print("processing intent="+intent)
 
         if intent == "assignment":
              response="Assignments are:"
@@ -780,7 +805,8 @@ def handle_command(command, channel, user):
                 startEventChat(user,intent,entities,userName,userEmail,responseFromWatson['input']['text'])
             else:
                 startEventChat(user, intent, entities, userName, userEmail, holdCommand)
-
+        elif intent=="seating_chart":
+                getSeatingChart(user, intent, entities)
 
         if len(attachments)>0:
             try:
@@ -829,7 +855,11 @@ if __name__ == "__main__":
     if slack_client.rtm_connect():
         print("StarterBot connected and running!")
         while True:
-            command, channel, user = parse_slack_output(slack_client.rtm_read())
+            try:
+                command, channel, user = parse_slack_output(slack_client.rtm_read())
+            except BrokenPipeError:
+                print("handling broken pipe error")
+                slack_client.rtm_connect()
             if command and channel and user:
                 handle_command(command, channel, user)
             time.sleep(READ_WEBSOCKET_DELAY)
