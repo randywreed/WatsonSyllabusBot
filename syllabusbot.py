@@ -422,14 +422,14 @@ def startAttendance(user, intent, entities):
     now = datetime.datetime.now()
     curdate = timezone('America/New_York').localize(now)
     curdate = curdate.strftime("%m/%d/%Y")
-    datcolrow = re.findall(r'\d+', str(wks.find(curdate)))
+    datrowcol = re.findall(r'\d+', str(wks.find(curdate)))
     # pdb.set_trace()
-    if len(datcolrow) == 0:
+    if len(datrowcol) == 0:
         # add date, first take row 1
         daterow=wks.get_row(1)
         newcol = len(daterow) + 1
     else:
-        newcol=datcolrow[1]
+        newcol=datrowcol[1]
 
     # d1 = wks.cell('A1')
     # d1.col = newcol
@@ -630,29 +630,52 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
                 botTalk("",userName,response)
                 return
 
-def getSeatingChart(user, intent, entities):
-    #create a new google spreadsheet for the room add date
+def getSeatingChart(user, intent, entities, userName):
+    #check and makes sure we have done attendance
+    global attendanceCol
     gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    if attendanceCol==0:
+        #attendance column flag is not set, check and see if attendance for today was recorded
+        attendspreadsheet = gc.open(ATTENDANCE_NAME)
+        attendwks = attendspreadsheet[0]
+        wksid=attendwks.id
+        # look for current date
+        # datetime_obj_pacific = timezone('Asia/Kolkata').localize(now)
+        now = datetime.datetime.now()
+        curdate = timezone('America/New_York').localize(now)
+        curdate = curdate.strftime("%m/%d/%Y")
+        datrowcol = re.findall(r'\d+', str(attendwks.find(curdate)))
+        if datrowcol==[]:
+            response="You must run attendance before asking for a seating chart" 
+            botTalk("",userName, response)
+            return
+        else:
+            attendanceCol=datrowcol[1]
+
+    #create a new google spreadsheet for the room add date
+    #gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
     now = datetime.datetime.now()
     curdate = timezone('America/New_York').localize(now)
     curdate = curdate.strftime("%m-%d-%Y-%H:%M")
-    nsh=gc.create(SEATING_CHART_NAME+curdate
-    
-    #open the template for the room (stored in the entity)            
-    
-    sh = gc.open(SEATING_CHART_ROOM_TEMPLATE+entities[0]['value'])
-    wks = sh[0]
-    
-    #load the google spreadsheet into a matrix
-    
-    
-    #open the copy
-    #load names and today's attendance seats into a dictionary
-    #replace seats in matrix with names
-    #rewrite the matrix to the spreadsheet
+    seatingChartCopy=gc.create(SEATING_CHART_NAME+curdate)
+    seatingChartCopyID=seatingChartCopy.id
+    seatingChartCopywks=seatingChartCopy[0]
+    #open the template for the room (stored in the entity)
+    seatingChartTemplate = gc.open(SEATING_CHART_ROOM_TEMPLATE+entities[0]['value'])
+    seatingChartTemplateWks = seatingChartTemplate[0]
+    seatingChartTemplateWks.copy_to(seatingChartCopyID)
+    seatingChartCopy.del_worksheet(seatingChartCopywks)
+    seatingChartCopywks=seatingChartCopy[0]
+    # walk the current attendance column, get the first name (col5)
+    attendcur=attendwks.get_col(attendanceCol)
+    attendname=attendwks.get_col(5)
+    for idx, seat in enumerate(attendcur):
+        if idx>=1:
+            seatingChartCopywks.find(str(seat),attendname[idx])
+    botTalk("",userName,"seating chart saved to "+seatingChartCopy.title)
     #send message with new spreadsheet name
-    
-            
+    return
+
         
 
 
@@ -735,7 +758,7 @@ def handle_command(command, channel, user):
             message_input={'text': command},
             context=context
         )
-        print("context from watson:"+responseFromWatson['context'])
+        print("context from watson:"+str(responseFromWatson['context']))
         context=responseFromWatson['context']
         #Get intent of the query
         if responseFromWatson['context']['conversation_id']==holdConversationID:
@@ -745,7 +768,7 @@ def handle_command(command, channel, user):
         #get entities from Wtson
         print("intent="+intent)
         entities=responseFromWatson['entities']
-        print("entities:"+entities)
+        print("entities:"+str(entities))
         userInfo=slack_client.api_call('users.info',user=user, token=SLACK_TOKEN)
         userName=userInfo['user']['profile']['first_name']
         userEmail=userInfo['user']['profile']['email']
@@ -806,7 +829,7 @@ def handle_command(command, channel, user):
             else:
                 startEventChat(user, intent, entities, userName, userEmail, holdCommand)
         elif intent=="seating_chart":
-                getSeatingChart(user, intent, entities)
+                getSeatingChart(user, intent, entities, userName)
 
         if len(attachments)>0:
             try:
