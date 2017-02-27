@@ -633,7 +633,11 @@ def startEventChat(user, intent, entities, userName, userEmail, intext):
 def getSeatingChart(user, intent, entities, userName):
     #check and makes sure we have done attendance
     global attendanceCol
+    print("seating chart creation")
     gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    attendspreadsheet = gc.open(ATTENDANCE_NAME)
+    attendwks = attendspreadsheet[0]
+    wksid = attendwks.id
     if attendanceCol==0:
         #attendance column flag is not set, check and see if attendance for today was recorded
         attendspreadsheet = gc.open(ATTENDANCE_NAME)
@@ -654,6 +658,7 @@ def getSeatingChart(user, intent, entities, userName):
 
     #create a new google spreadsheet for the room add date
     #gc = pygsheets.authorize(outh_file="sheets.googleapis.com-python.json")
+    print("creating google sheet")
     now = datetime.datetime.now()
     curdate = timezone('America/New_York').localize(now)
     curdate = curdate.strftime("%m-%d-%Y-%H:%M")
@@ -829,7 +834,8 @@ def handle_command(command, channel, user):
             else:
                 startEventChat(user, intent, entities, userName, userEmail, holdCommand)
         elif intent=="seating_chart":
-                getSeatingChart(user, intent, entities, userName)
+                if ['entity'] in entities and entities[0]['entity']=="room":
+                    getSeatingChart(user, intent, entities, userName)
 
         if len(attachments)>0:
             try:
