@@ -83,13 +83,13 @@ attendanceDict=collections.OrderedDict()
 
 def return_next_tues_thur(dt):
     while True:
-        dt += timedelta(days=1)
+        dt=dt+timedelta(days=1)
         dow = dt.strftime("%w")
-        if dow == 2 | dow == 4:
+        if dow == 2 or dow == 4:
            return dt
 
 if __name__ == "__main__":
-    entities={}
+    entities=[]
     READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
     if slack_client.rtm_connect():
         print("StarterBot connected and running!")
@@ -107,7 +107,11 @@ if __name__ == "__main__":
         now=datetime.datetime.now()
         now=now.strftime('%Y-%m-%d')
         intent="Assignment"
-        entities['value']=now
+        import pdb
+        #pdb.set_trace()
+        entities.append({'value':now})
+        for entity in entities:
+            print( entity['value'])
         attachments=calendarQuery("@Everyone", intent,entities)
         botTalkAttachments("","<!everyone>","Assignments for Today are:", attachments)
         intent="Event"
@@ -115,7 +119,8 @@ if __name__ == "__main__":
         botTalkAttachments("","<!everyone>","Events for Today are:", attachments)
         tomorrow=datetime.datetime.now()+timedelta(days=1)
         #tomorrow=tomorrow.strptime("%Y-%m-%d %H:%M:%S").strftime('%Y-%m-%d')
-        nextclass=return_next_tues_thur(tomorrow)
+        #pdb.set_trace()
+        nextclass=return_next_tues_thur(datetime.datetime.now())
         intent="Reading"
         entities['value']=nextclass
         attachments=calendarQuery("@everyone", intent, entities)
