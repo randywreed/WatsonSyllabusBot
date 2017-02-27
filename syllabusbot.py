@@ -789,7 +789,10 @@ def handle_command(command, channel, user):
         if len(entities)>0:
             if 'help_active' in context and context['help_active']=="True":
                 intent="help"
-        
+        #if the intent is "greetings" check and see if the intent is in the context variable
+        if intent=="greetings":
+            if 'intent' in context:
+                intent=context['intent']
         print("processing intent="+intent)
 
         if intent == "assignment":
