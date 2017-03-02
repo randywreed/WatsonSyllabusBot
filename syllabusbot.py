@@ -766,7 +766,7 @@ def handle_command(command, channel, user):
                     message_input={'text': command},
                     context=context
                 )
-            except WatsonException:
+            except:
                 logging.error(responseFromWatson)
                 time.sleep(1)
             else:
