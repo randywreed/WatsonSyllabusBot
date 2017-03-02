@@ -51,6 +51,7 @@ import threading
 # except ImportError:
 #     flags = None
 
+logging.basicConfig(filename='syllabusbot.log', level=logging.DEBUG)
 param=sys.argv[1]
 print(param)
 confi=configparser.ConfigParser()
@@ -758,11 +759,19 @@ def handle_command(command, channel, user):
             command=command[:250]
         if holdConversationID!="":
             context['conversation_id']=holdConversationID
-        responseFromWatson = conversation.message(
-            workspace_id=WORKSPACE_ID,
-            message_input={'text': command},
-            context=context
-        )
+        while True:
+            try:
+                responseFromWatson = conversation.message(
+                    workspace_id=WORKSPACE_ID,
+                    message_input={'text': command},
+                    context=context
+                )
+            except WatsonException:
+                logging.error(responseFromWatson)
+                time.sleep(1)
+            else:
+                break
+
         print("context from watson:"+str(responseFromWatson['context']))
         context=responseFromWatson['context']
         #Get intent of the query
