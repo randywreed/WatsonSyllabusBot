@@ -924,6 +924,8 @@ if __name__ == "__main__":
         channel = "none"
         print(command)
         handle_command(command,channel,u)
+    while True:
+        continue
 
 
 
