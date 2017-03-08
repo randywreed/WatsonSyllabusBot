@@ -874,7 +874,7 @@ def parse_slack_output(slack_rtm_output):
     if output_list and len(output_list) > 0:
         #print(output_list)
         for output in output_list:
-            print(output)
+            #print(output)
             try:
                 if output and 'bot_id' in output:
                     return None, None, None
@@ -906,6 +906,8 @@ if __name__ == "__main__":
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
         print("Connection failed. Invalid Slack token or bot ID?")
+
+
 
 # def calendarUsage(user, intent):
 #     """Shows basic usage of the Google Calendar API.

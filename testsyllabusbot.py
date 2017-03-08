@@ -917,13 +917,17 @@ if __name__ == "__main__":
     # read command from list
     user =["ackermanme@appstate.edu","ammonj@appstate.edu","ammonll@appstate.edu","barberej@appstate.edu","bobbittes@appstate.edu","bohlandjj@appstate.edu","bohneeb@appstate.edu","bonifatias@appstate.edu","brownsm8@appstate.edu","burkejd1@appstate.edu","campad@appstate.edu","cariellona@appstate.edu","cartercb@appstate.edu","castroan@appstate.edu","cinkera@appstate.edu","collinsmc@appstate.edu","connerrm@appstate.edu","cravenss@appstate.edu","dealal@appstate.edu","decaroliswd@appstate.edu","deshieldsje@appstate.edu","doubke@appstate.edu","dyerdr@appstate.edu","ehlincn@appstate.edu","ervinme@appstate.edu","gattonphillipspm@appstate.edu","goodmanjd@appstate.edu","haynesde@appstate.edu","hillrl3@appstate.edu","hollandsm@appstate.edu","howellhe@appstate.edu","kalainikasmp@appstate.edu","levance@appstate.edu","mackii@appstate.edu","mcneillsc3@appstate.edu","midgettja@appstate.edu","mohlerrf@appstate.edu","myersjd@appstate.edu","pattonss1@appstate.edu","pelosinj@appstate.edu","pemletonjt@appstate.edu","perdueca@appstate.edu","peterar@appstate.edu","pinderck@appstate.edu","reedrw@appstate.edu","risnervf@appstate.edu","rogersta@appstate.edu","rosemanij@appstate.edu","schaferca@appstate.edu","schlicherev@appstate.edu","schmidtm1@appstate.edu","stameybt@appstate.edu","stewartca4@appstate.edu","stoutmd1@appstate.edu","warrenca1@appstate.edu","wilsoncg1@appstate.edu","woodycd@appstate.edu"]
     for u in user:
-        cmmdbase = "Hi Jane, I'm here in "
-        rowlist = ["a", "b", "c", "d", "e"]
-        seatlist = list(range(1, 20))
-        command = cmmdbase + str(random.choice(rowlist)) + str(random.choice(seatlist))
+        cmmdbase = "Hi Jane, I'm here "
+
+        command = cmmdbase
         channel = "none"
         print(command)
         handle_command(command,channel,u)
+        rowlist = ["a", "b", "c", "d", "e"]
+        seatlist = list(range(1, 20))
+        #now send seat and row number
+        command=str(random.choice(rowlist)) + str(random.choice(seatlist))
+        handle_command(command, channel,u)
     while True:
         continue
 
